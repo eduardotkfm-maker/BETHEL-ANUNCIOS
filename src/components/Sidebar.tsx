@@ -21,7 +21,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: SidebarProps) {
-    const { profile, user } = useAuth();
+    const { profile } = useAuth();
 
     return (
         <aside className={`bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-screen flex flex-col fixed left-0 top-0 z-40 transition-all duration-300
