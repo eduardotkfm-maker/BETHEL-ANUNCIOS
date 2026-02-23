@@ -1,118 +1,206 @@
-import { useState } from 'react';
-import { Upload, Link, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
-import { analyzeAd } from '../lib/agents/adAnalyzerAgent';
+import { useState, useEffect } from 'react';
+import { Wand2, Video, Check, Sparkles, Link as LinkIcon } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { modelCreativeFromVideo } from '../lib/aiClient';
+import { supabase } from '../lib/supabase';
+import { useLocation } from 'react-router-dom';
 
 export default function AdAnalyzer() {
-    const [url, setUrl] = useState('');
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [result, setResult] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+    const location = useLocation();
 
-    const handleAnalyze = async () => {
-        setIsAnalyzing(true);
+    // states para Módulo de Modelagem (Vídeo)
+    const [products, setProducts] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+    const [selectedProductId, setSelectedProductId] = useState('');
+    const [isModeling, setIsModeling] = useState(false);
+    const [videoFile, setVideoFile] = useState<File | null>(null);
+    const [videoUrl, setVideoUrl] = useState('');
+    const [modeledScript, setModeledScript] = useState<{ title: string, script: string } | null>(null);
+
+    useEffect(() => {
+        if (location.state?.sourceVideoUrl) {
+            setVideoUrl(location.state.sourceVideoUrl);
+        }
+
+        const fetchProducts = async () => {
+            const { data } = await supabase.from('products').select('*');
+            if (data) setProducts(data);
+        };
+        fetchProducts();
+    }, []);
+
+    const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setVideoFile(file);
+            setVideoUrl(''); // Limpa o link se usuário escolheu arquivo
+        }
+    };
+
+    const handleModelVideo = async () => {
+        if ((!videoFile && !videoUrl) || !selectedProductId) return;
+
+        if (videoUrl && !videoFile) {
+            alert("A extração direta por Link Social ainda requer um ambiente backend scraper para pular bloqueios CORS/DRM. Para rodar a Modelação, baixe o vídeo e use a opção de 'Upload .MP4' enquanto conectamos essa API de extração.");
+            return;
+        }
+
+        setIsModeling(true);
         try {
-            const response = await analyzeAd({ url });
-            setResult(response);
-        } catch (error) {
-            console.error('Falha ao analisar o anúncio:', error);
-            // Idealmente você adicionaria um toast de erro aqui para o usuário
-        } finally {
-            setIsAnalyzing(false);
+            const product = products.find(p => p.id === selectedProductId);
+
+            // Lê o arquivo como base64 (se for um arquivo carregado)
+            if (videoFile) {
+                const reader = new FileReader();
+                reader.readAsDataURL(videoFile);
+                reader.onload = async () => {
+                    const base64Data = (reader.result as string).split(',')[1];
+                    const mimeType = videoFile.type;
+
+                    const response = await modelCreativeFromVideo(base64Data, mimeType, product);
+                    setModeledScript(response);
+
+                    // Auto-salvar no Kanban
+                    await supabase.from('creative_production_tasks').insert([{
+                        title: response.title || 'Criativo Modelado da Concorrência',
+                        script: response.script,
+                        status: 'idea'
+                    }]);
+                    setIsModeling(false);
+                };
+                reader.onerror = error => {
+                    console.error("Erro na leitura do arquivo", error);
+                    setIsModeling(false);
+                    alert("Erro interno ao ler o arquivo MP4.");
+                };
+            }
+        } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            console.error('Erro na modelagem:', err);
+            alert("Ocorreu um erro chamando a IA. " + err.message);
+            setIsModeling(false);
         }
     };
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Analisador de Anúncios com IA</h1>
-                <p className="mt-2 text-gray-600 dark:text-gray-400">Receba feedback instantâneo e sugestões para melhorar seus criativos.</p>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Inteligência de Criativos</h1>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">Clone os melhores anúncios da concorrência e modele-os para o seu produto em segundos.</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 relative">
-                        <Link className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <input
-                            type="text"
-                            placeholder="Cole o link do seu anúncio (YouTube, Instagram...)"
-                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 transition-all"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                        />
-                    </div>
-                    <button
-                        onClick={handleAnalyze}
-                        disabled={!url || isAnalyzing}
-                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[150px]"
-                    >
-                        {isAnalyzing ? 'Analisando...' : 'Analisar'}
-                    </button>
-                </div>
-
-                <div className="mt-6 flex items-center justify-center border-t border-gray-100 dark:border-gray-800 pt-6">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                        ou faça upload do arquivo
-                        <button className="text-blue-600 hover:underline font-medium flex items-center gap-1">
-                            <Upload className="w-4 h-4" /> Clique aqui
-                        </button>
-                    </p>
-                </div>
-            </div>
-
-            {result && (
-                <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-6">
-                    <div className="flex items-center justify-center p-8 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
-                        <div className="text-center">
-                            <div className="inline-flex items-center justify-center w-32 h-32 rounded-full border-8 border-blue-100 dark:border-blue-900 mb-4 bg-white dark:bg-gray-800">
-                                <span className="text-4xl font-bold text-blue-600">{result.score}</span>
-                            </div>
-                            <p className="text-lg font-medium text-gray-600 dark:text-gray-300">Nota do Anúncio</p>
+            <div className="w-full">
+                {/* Clonagem de Concorrente Card */}
+                <div className="bg-white dark:bg-gray-900 p-8 sm:p-12 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col justify-center h-full">
+                    <div className="text-center mb-8">
+                        <div className="inline-flex p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-full mb-4">
+                            <Sparkles className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                         </div>
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Clonar Anúncio Vencedor</h3>
+                        <p className="text-gray-500 max-w-xl mx-auto">Suba o vídeo (MP4) de um anúncio de alta performance ou cole o link dele. A IA irá decifrar a estrutura narrativa e reescrever o roteiro perfeitamente adaptado para as dores do seu produto.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border-l-4 border-green-500 shadow-sm">
-                            <h3 className="text-lg font-bold text-green-700 flex items-center gap-2 mb-4">
-                                <CheckCircle className="w-5 h-5" /> Pontos Fortes
-                            </h3>
-                            <ul className="space-y-2">
-                                {result.strengths.map((item: string, i: number) => (
-                                    <li key={i} className="flex items-start gap-2 text-gray-600 dark:text-gray-300">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2"></span>
-                                        {item}
-                                    </li>
+                    <div className="space-y-6 max-w-2xl mx-auto w-full">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">1. Produto Destino</label>
+                            <select
+                                className="w-full pl-4 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-900 outline-none transition-all font-medium text-gray-700 dark:text-gray-300"
+                                value={selectedProductId}
+                                onChange={(e) => setSelectedProductId(e.target.value)}
+                            >
+                                <option value="">Selecione o produto que será vendido...</option>
+                                {products.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} ({p.niche})</option>
                                 ))}
-                            </ul>
+                            </select>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border-l-4 border-red-500 shadow-sm">
-                            <h3 className="text-lg font-bold text-red-700 flex items-center gap-2 mb-4">
-                                <XCircle className="w-5 h-5" /> Pontos Fracos
-                            </h3>
-                            <ul className="space-y-2">
-                                {result.weaknesses.map((item: string, i: number) => (
-                                    <li key={i} className="flex items-start gap-2 text-gray-600 dark:text-gray-300">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2"></span>
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div className="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-2xl border border-blue-100 dark:border-blue-800">
-                        <h3 className="text-lg font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-4">
-                            <AlertCircle className="w-5 h-5" /> Sugestões de Melhoria
-                        </h3>
-                        <ul className="space-y-3">
-                            {result.suggestions.map((item: string, i: number) => (
-                                <li key={i} className="flex items-start gap-3 text-blue-900 dark:text-blue-200">
-                                    <span className="font-bold bg-blue-200 dark:bg-blue-800 w-6 h-6 flex items-center justify-center rounded-full text-xs flex-shrink-0">
-                                        {i + 1}
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">2. Fonte Original do Anúncio</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label className={`cursor-pointer border-2 transition-all flex flex-col items-center justify-center gap-3 p-4 rounded-2xl ${videoFile ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 bg-gray-50 dark:bg-gray-800'}`}>
+                                    <Video className={`w-6 h-6 ${videoFile ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} />
+                                    <span className={`text-sm font-bold text-center ${videoFile ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400'}`}>
+                                        {videoFile ? videoFile.name.substring(0, 20) + '...' : 'Upload de Vídeo (.MP4)'}
                                     </span>
-                                    {item}
-                                </li>
-                            ))}
-                        </ul>
+                                    <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={handleVideoUpload} disabled={isModeling} />
+                                </label>
+
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <LinkIcon className="h-5 w-5 text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="url"
+                                        placeholder="Colar link (Reels, TikTok...)"
+                                        className="w-full h-full pl-11 pr-4 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-900 outline-none transition-all text-sm font-medium"
+                                        value={videoUrl}
+                                        onChange={(e) => {
+                                            setVideoUrl(e.target.value);
+                                            if (e.target.value) setVideoFile(null);
+                                        }}
+                                        disabled={isModeling}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleModelVideo}
+                            disabled={(!videoFile && !videoUrl) || !selectedProductId || isModeling}
+                            className="w-full mt-4 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-lg rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center justify-center gap-2"
+                        >
+                            <Wand2 className="w-5 h-5" />
+                            {isModeling ? 'Decifrando Roteiro Original...' : 'Iniciar Clonagem Estrutural'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modeled Script Results */}
+            {modeledScript && (
+                <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-6">
+                    <div className="bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-purple-500" /> Roteiro Modelado da Concorrência
+                            </h3>
+                            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-400 px-3 py-1.5 rounded-md">
+                                <Check className="w-4 h-4" /> Enviado para a Esteira (Ideias)
+                            </span>
+                        </div>
+                        <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none">
+                            <ReactMarkdown
+                                components={{
+                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+                                    h3: ({ node, ...props }: any) => {
+                                        const isHook = String(props.children).toUpperCase().includes('HOOK');
+                                        return (
+                                            <h3
+                                                {...props}
+                                                className={`mt-6 mb-3 px-3 py-1.5 rounded-lg inline-block ${isHook
+                                                    ? 'bg-amber-100/80 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 font-black border border-amber-200 dark:border-amber-800/50'
+                                                    : 'bg-indigo-50/80 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 font-bold border border-indigo-100 dark:border-indigo-800/50'
+                                                    }`}
+                                            />
+                                        );
+                                    },
+                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+                                    p: ({ node, ...props }: any) => {
+                                        const content = String(props.children);
+                                        if (content.includes('🎙️ Fala') || content.includes('🎙️ Fone')) {
+                                            return <p {...props} className="text-gray-800 dark:text-gray-200 leading-relaxed bg-white border border-gray-100 dark:border-gray-800 dark:bg-gray-900 p-4 rounded-xl shadow-sm my-3 border-l-4 border-l-blue-500" />
+                                        }
+                                        if (content.startsWith('(Visual:')) {
+                                            return <p {...props} className="text-sm font-medium text-gray-500 dark:text-gray-400 italic mb-2 ml-1" />
+                                        }
+                                        return <p {...props} className="mb-4 leading-relaxed tracking-wide text-gray-600 dark:text-gray-300" />;
+                                    },
+                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+                                    strong: ({ node, ...props }: any) => <strong {...props} className="font-extrabold text-gray-900 dark:text-white" />
+                                }}
+                            >
+                                {modeledScript.script}
+                            </ReactMarkdown>
+                        </div>
                     </div>
                 </div>
             )}

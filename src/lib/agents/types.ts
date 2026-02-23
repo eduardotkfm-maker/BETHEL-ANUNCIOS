@@ -13,7 +13,14 @@ export interface ScriptGeneratorRequest {
     productName: string;
     niche: string;
     pain: string;
-    desire: string;
+    desire?: string;
+    price?: string;
+    deliverables?: string;
+    productType?: string;
+    isVariation?: boolean;
+    baseScript?: string;
+    templateInstruction?: string;
+    templateName?: string;
 }
 
 export interface ScriptGeneratorResponse {

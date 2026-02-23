@@ -1,59 +1,68 @@
 import type { ScriptGeneratorRequest, ScriptGeneratorResponse } from './types';
-import { AGENT_CONFIG } from './config';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
 
 /**
  * Serviço responsável por comunicar com a IA de Geração de Roteiros.
  */
 export async function generateScript(request: ScriptGeneratorRequest): Promise<ScriptGeneratorResponse> {
-    // ----------------------------------------------------------------------
-    // TODO: Quando você for conectar de verdade à sua API, mude "isMock" para false.
-    // ----------------------------------------------------------------------
-    const isMock = true;
-
-    if (!isMock) {
-        try {
-            const response = await fetch(AGENT_CONFIG.scriptGeneratorUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // 'Authorization': `Bearer ${AGENT_CONFIG.apiKey}` // Se necessário
-                },
-                body: JSON.stringify(request),
-            });
-
-            if (!response.ok) {
-                throw new Error('Erro ao comunicar com o Agente Gerador de Roteiros');
-            }
-
-            return await response.json() as ScriptGeneratorResponse;
-        } catch (error) {
-            console.error('Falha no Script Generator Agent:', error);
-            throw error;
-        }
+    if (!apiKey) {
+        throw new Error("Chave VITE_GEMINI_API_KEY não encontrada no .env!");
     }
 
-    // --- LÓGICA MOCKADA TEMPORÁRIA ---
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const script = `
-# Roteiro para: ${request.productName}
-## Nicho: ${request.niche}
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const variationInstructions = request.isVariation && request.baseScript
+        ? `\n[INSTRUÇÃO CRÍTICA DE VARIAÇÃO]: O usuário pediu uma VARIAÇÃO do seguinte roteiro base:\n"""\n${request.baseScript}\n"""\nCrie uma versão NOVA, com um GANCHO (Hook) completamente diferente e uma abordagem alternativa de Copy, mas mantendo a mesma promessa e produto.\n`
+        : '';
+
+    const templateDirectives = request.templateInstruction
+        ? `\n[INSTRUÇÃO DE TEMPLATE VENCEDOR]: O usuário escolheu ser guiado pelo modelo "${request.templateName || 'Customizado'}". \n\n⚠️ VOCÊ DEVE IGNORAR SUA ESTRUTURA NORMAL DE 4 PASSOS E SEGUIR OBRIGATORIAMENTE ESTE FORMATO ABAIXO:\n\n"""\nESTRUTURA OBRIGATÓRIA A SEGUIR:\n${request.templateInstruction}\n"""\n`
+        : `\nESTRUTURA OBRIGATÓRIA (Forneça o roteiro exatamente nestas seções):
 
 ### [HOOK - 0-3s]
-(Visual impactante ou pergunta retórica)
-"Você está cansado de ${request.pain}? Eu sei exatamente como você se sente."
+(Instrução Visual: Como deve ser a cena/câmera para chamar atenção imediata)
+🎙️ Fala (Ator): ...
 
-### [CORPO - 3-15s]
-"Muitas pessoas no nicho de ${request.niche} sofrem com isso todos os dias. Mas a verdade é que você não precisa continuar passando por isso.
-Imagine poder finalmente ${request.desire} sem esforço desnecessário."
+### [CONEXÃO E PROBLEMA - 3-15s]
+(Instrução Visual: B-Roll ou Movimentação)
+🎙️ Fala (Ator): ...
 
-### [SOLUÇÃO/PRODUTO - 15-30s]
-"É por isso que criamos o ${request.productName}. A solução definitiva que vai te ajudar a alcançar ${request.desire} em tempo recorde."
+### [A SOLUÇÃO E PRODUTO - 15-30s]
+(Instrução Visual: Mostrar o produto ou Dashboard)
+🎙️ Fala (Ator): ...
 
-### [CTA - 30s+]
-"Clique no botão abaixo e descubra como o ${request.productName} pode transformar sua realidade hoje mesmo!"
-            `;
-            resolve({ script: script.trim() });
-        }, 1500);
-    });
+### [CALL TO ACTION - 30s+]
+(Instrução Visual: Apontando para o botão)
+🎙️ Fala (Ator): ...`;
+
+    const prompt = `
+Você é um Copywriter de Alta Performance focado em Vídeos Curtos (Reels/TikTok/Shorts).
+Sua missão é criar um Roteiro de Anúncio Vendedor, que converta e chame atenção logo de cara.${variationInstructions}
+
+INFORMAÇÕES DO PRODUTO/OFERTA (CONTEXTO DE TREINAMENTO):
+- Nome do Produto: ${request.productName}
+- Tipo de Produto: ${request.productType || 'Não Especificado'}
+- Nicho de Mercado: ${request.niche}
+- Preço/Valor Padrão: ${request.price || 'Não Especificado'}
+- O que Entrega (Deliverables): ${request.deliverables || 'Não Especificado'}
+- Principal Dor do Cliente (Pain): ${request.pain}
+- Desejo/Transformação Ofertada: ${request.desire || 'Resolver a dor acima e escalar com facilidade'}
+${templateDirectives}
+
+IMPORTANTE: Forneça Apenas o script, nada de cumprimentar ou falar "Ok, aqui está". Quero apenas a copy pronta.
+`;
+
+    try {
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const text = response.text();
+
+        return { script: text.trim() };
+    } catch (error) {
+        console.error('Falha no Script Generator Agent:', error);
+        throw error;
+    }
 }
