@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import Dashboard from './pages/Dashboard';
 import ScriptGenerator from './pages/ScriptGenerator';
-import ConversionModels from './pages/ConversionModels';
 import AdLibrary from './pages/AdLibrary';
 import AdAnalyzer from './pages/AdAnalyzer';
 import GoldLibrary from './pages/GoldLibrary';
@@ -29,7 +28,6 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="produtos" element={<Products />} />
             <Route path="roteiros" element={<ScriptGenerator />} />
-            <Route path="modelos" element={<ConversionModels />} />
             <Route path="biblioteca" element={<AdLibrary />} />
             <Route path="analisador" element={<AdAnalyzer />} />
             <Route path="biblioteca-ouro" element={<GoldLibrary />} />

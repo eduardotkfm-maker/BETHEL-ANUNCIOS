@@ -5,7 +5,7 @@ import { Camera, Save, LogOut, Loader2, Key, User, ShieldCheck, Mail, AlertCircl
 import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
-    const { user, profile, refreshProfile, signOut } = useAuth();
+    const { user, profile, updateProfile, signOut } = useAuth();
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
@@ -43,6 +43,21 @@ export default function Settings() {
                 return;
             }
             const file = event.target.files[0];
+
+            // --- LÓGICA MODO DEMO ---
+            if (user?.id === '00000000-0000-0000-0000-000000000000') {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64String = reader.result as string;
+                    setAvatarUrl(base64String);
+                    await updateProfile({ avatar_url: base64String });
+                    showMessage('success', 'Foto de perfil atualizada (Modo Demo)!');
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+            // ------------------------
+
             const fileExt = file.name.split('.').pop();
             const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
             const filePath = `${fileName}`;
@@ -61,9 +76,8 @@ export default function Settings() {
 
             setAvatarUrl(publicUrl);
 
-            // Auto Update Profile
-            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user?.id);
-            await refreshProfile();
+            // Auto Update Profile via centralized function
+            await updateProfile({ avatar_url: publicUrl });
 
             showMessage('success', 'Foto de perfil atualizada com sucesso!');
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -78,18 +92,11 @@ export default function Settings() {
         e.preventDefault();
         try {
             setIsSaving(true);
-
-            const { error } = await supabase.from('profiles').update({
+            await updateProfile({
                 first_name: firstName,
-                last_name: lastName,
-                updated_at: new Date()
-            }).eq('id', user?.id);
-
-            if (error) throw error;
-
-            await refreshProfile();
+                last_name: lastName
+            });
             showMessage('success', 'Perfil salvo com sucesso!');
-
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Update profile error:', error);
             showMessage('error', error.message || 'Erro ao salvar perfil.');
@@ -167,7 +174,7 @@ export default function Settings() {
                     <Key className="w-4 h-4" /> Segurança (Senha)
                 </button>
                 <div
-                    className={`flex items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 border-transparent text-gray-500 cursor-not-allowed hidden md:flex`}
+                    className={`items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 border-transparent text-gray-500 cursor-not-allowed hidden md:flex`}
                 >
                     <ShieldCheck className="w-4 h-4" /> Plano Premium (Ativo)
                 </div>
@@ -181,7 +188,7 @@ export default function Settings() {
                 </div>
             )}
 
-            <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
                 {activeTab === 'profile' && (
                     <div className="p-6 md:p-8 animate-in fade-in">
                         <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -193,7 +200,7 @@ export default function Settings() {
                                         {avatarUrl ? (
                                             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white text-4xl font-black">
+                                            <div className="w-full h-full flex items-center justify-center bg-linear-to-tr from-indigo-500 to-cyan-500 text-white text-4xl font-black">
                                                 {firstName ? firstName.charAt(0).toUpperCase() : 'B'}
                                             </div>
                                         )}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Send, Copy, FileText, Check, RefreshCw, Trash2, Sparkles, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
+import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { generateScript } from '../lib/agents/scriptGeneratorAgent';
 import { supabase } from '../lib/supabase';
 
@@ -33,10 +33,13 @@ export default function ScriptGenerator() {
                 niche: '',
                 pain: '',
                 desire: '',
+                funnelStage: 'topo',
+                creativeModel: '',
+                scriptCount: 1,
             };
         } catch (e) {
             console.error("Local Storage Error:", e);
-            return { productName: '', niche: '', pain: '', desire: '' };
+            return { productName: '', niche: '', pain: '', desire: '', funnelStage: 'topo', creativeModel: '', scriptCount: 1 };
         }
     });
 
@@ -100,14 +103,20 @@ export default function ScriptGenerator() {
                 deliverables: productContext.deliverables,
                 productType: productContext.product_type,
                 templateInstruction,
-                templateName
+                templateName,
+                funnelStage: formData.funnelStage,
+                creativeModel: formData.creativeModel,
+                scriptCount: formData.scriptCount
             } : {
                 productName: formData.productName,
                 niche: formData.niche,
                 pain: formData.pain,
                 desire: formData.desire,
                 templateInstruction,
-                templateName
+                templateName,
+                funnelStage: formData.funnelStage,
+                creativeModel: formData.creativeModel,
+                scriptCount: formData.scriptCount
             };
 
             const response = await generateScript(requestPayload);
@@ -165,7 +174,10 @@ export default function ScriptGenerator() {
                 isVariation: true,
                 baseScript: generatedScript,
                 templateInstruction,
-                templateName
+                templateName,
+                funnelStage: formData.funnelStage,
+                creativeModel: formData.creativeModel,
+                scriptCount: formData.scriptCount
             };
 
             const response = await generateScript(requestPayload);
@@ -205,7 +217,15 @@ export default function ScriptGenerator() {
 
     const handleClearForm = () => {
         if (window.confirm('Limpar as configurações atuais e começar do zero?')) {
-            setFormData({ productName: '', niche: '', pain: '', desire: '' });
+            setFormData({
+                productName: '',
+                niche: '',
+                pain: '',
+                desire: '',
+                funnelStage: 'topo',
+                creativeModel: '',
+                scriptCount: 1
+            });
             setSelectedProductId('');
             setGeneratedScript('');
             removeTemplate();
@@ -213,12 +233,12 @@ export default function ScriptGenerator() {
     };
 
     return (
-        <div className="flex flex-col xl:flex-row gap-8">
+        <div className="flex flex-col xl:flex-row gap-6">
             {/* Input Section */}
-            <div className="flex-1 bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 h-fit">
+            <div className="xl:w-[380px] xl:shrink-0 bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 h-fit">
 
                 {templateName && (
-                    <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl relative overflow-hidden group">
+                    <div className="mb-6 p-4 bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 dark:border-indigo-500/30 rounded-xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-2xl -mr-10 -mt-10" />
                         <button
                             onClick={removeTemplate}
@@ -227,8 +247,8 @@ export default function ScriptGenerator() {
                         >
                             <X className="w-4 h-4" />
                         </button>
-                        <div className="flex items-start gap-3 relative z-10">
-                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex-shrink-0 mt-0.5">
+                        <div className="flex items-start gap-3 relative z-10 shrink-0">
+                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg shrink-0 mt-0.5">
                                 <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                             </div>
                             <div className="pr-8">
@@ -260,7 +280,7 @@ export default function ScriptGenerator() {
                             Selecione a Base do Produto (Treinamento IA)
                         </label>
                         <select
-                            className="w-full p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium text-indigo-900 dark:text-indigo-200"
+                            className="w-full p-3 rounded-xl bg-indigo-50 dark:bg-gray-800 border border-indigo-100 dark:border-indigo-800 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium text-indigo-900 dark:text-indigo-200"
                             value={selectedProductId}
                             onChange={(e) => setSelectedProductId(e.target.value)}
                         >
@@ -279,7 +299,7 @@ export default function ScriptGenerator() {
                             <div className="mt-4">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Direcionamento Extra (Opcional)</label>
                                 <textarea
-                                    className="w-full p-3 rounded-xl bg-white dark:bg-gray-900 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200 resize-none h-20"
+                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 dark:text-gray-200 resize-none h-20"
                                     placeholder="Ex: Focar na escassez ou na dor XYZ..."
                                     value={formData.desire}
                                     onChange={(e) => setFormData({ ...formData, desire: e.target.value })}
@@ -292,8 +312,8 @@ export default function ScriptGenerator() {
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Produto</label>
                                 <input
                                     type="text"
-                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
-                                    placeholder="Ex: Bethel Pro"
+                                    className="w-full p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
+                                    placeholder="Ex: Novo Lançamento"
                                     value={formData.productName}
                                     onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
                                 />
@@ -303,7 +323,7 @@ export default function ScriptGenerator() {
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nicho</label>
                                 <input
                                     type="text"
-                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
+                                    className="w-full p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
                                     placeholder="Ex: Marketing Digital"
                                     value={formData.niche}
                                     onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
@@ -313,7 +333,7 @@ export default function ScriptGenerator() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Principal Dor (Pain Point)</label>
                                 <textarea
-                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200 resize-none h-24"
+                                    className="w-full p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200 resize-none h-24"
                                     placeholder="Ex: Não conseguir vender online..."
                                     value={formData.pain}
                                     onChange={(e) => setFormData({ ...formData, pain: e.target.value })}
@@ -323,7 +343,7 @@ export default function ScriptGenerator() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desejo (Resultado Esperado)</label>
                                 <textarea
-                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200 resize-none h-24"
+                                    className="w-full p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200 resize-none h-24"
                                     placeholder="Ex: Escalar vendas e ter liberdade..."
                                     value={formData.desire}
                                     onChange={(e) => setFormData({ ...formData, desire: e.target.value })}
@@ -332,12 +352,49 @@ export default function ScriptGenerator() {
                         </>
                     )}
 
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estágio do Funil</label>
+                            <select
+                                className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
+                                value={formData.funnelStage}
+                                onChange={(e) => setFormData({ ...formData, funnelStage: e.target.value })}
+                            >
+                                <option value="topo">Topo (Atração)</option>
+                                <option value="meio">Meio (Consideração)</option>
+                                <option value="fundo">Fundo (Conversão)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Qtd. Roteiros</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="5"
+                                className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
+                                value={formData.scriptCount}
+                                onChange={(e) => setFormData({ ...formData, scriptCount: parseInt(e.target.value) || 1 })}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Modelo de Criativo</label>
+                        <input
+                            type="text"
+                            className="w-full p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
+                            placeholder="Ex: UGC, Review, Direto ao Ponto..."
+                            value={formData.creativeModel}
+                            onChange={(e) => setFormData({ ...formData, creativeModel: e.target.value })}
+                        />
+                    </div>
+
                     <button
                         onClick={handleGenerate}
                         disabled={isGenerating || (!formData.productName && !selectedProductId)}
                         className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${isGenerating || (!formData.productName && !selectedProductId)
                             ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600'
-                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:scale-[1.02]'
+                            : 'bg-linear-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:scale-[1.02]'
                             }`}
                     >
                         {isGenerating ? (
@@ -352,7 +409,7 @@ export default function ScriptGenerator() {
             </div>
 
             {/* Output Section */}
-            <div className="flex-1 bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 min-h-[500px] flex flex-col">
+            <div className="flex-1 min-w-0 bg-white dark:bg-gray-900 p-4 md:p-6 rounded-2xl border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-bold">Roteiro Gerado</h2>
@@ -384,45 +441,9 @@ export default function ScriptGenerator() {
                     )}
                 </div>
 
-                <div className="flex-1 bg-gray-50 dark:bg-gray-950 p-6 rounded-xl border border-gray-100 dark:border-gray-800 overflow-auto">
+                <div className="flex-1 p-3 md:p-5 rounded-xl border border-gray-100 dark:border-gray-800/60 overflow-y-auto overflow-x-hidden wrap-break-word" style={{ maxHeight: 'calc(100vh - 180px)' }}>
                     {generatedScript ? (
-                        <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-h3:text-indigo-600 prose-h3:dark:text-indigo-400 prose-h3:font-black prose-p:text-gray-700 prose-p:dark:text-gray-300 prose-strong:text-gray-900 prose-strong:dark:text-gray-100">
-                            <ReactMarkdown
-                                components={{
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-                                    h3: ({ node, ...props }: any) => {
-                                        // Se o titulo do bloco tiver a palavra HOOK acende num fundo de alerta amarelo!
-                                        const isHook = String(props.children).toUpperCase().includes('HOOK');
-                                        return (
-                                            <h3
-                                                {...props}
-                                                className={`mt-6 mb-3 px-3 py-1.5 rounded-lg inline-block ${isHook
-                                                    ? 'bg-amber-100/80 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 font-black border border-amber-200 dark:border-amber-800/50'
-                                                    : 'bg-indigo-50/80 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 font-bold border border-indigo-100 dark:border-indigo-800/50'
-                                                    }`}
-                                            />
-                                        );
-                                    },
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-                                    p: ({ node, ...props }: any) => {
-                                        const content = String(props.children);
-                                        // Colore a parte da emoção "🎙️ Fala:"
-                                        if (content.includes('🎙️ Fala') || content.includes('🎙️ Fone')) {
-                                            return <p {...props} className="text-gray-800 dark:text-gray-200 leading-relaxed bg-white border border-gray-100 dark:border-gray-800 dark:bg-gray-900 p-4 rounded-xl shadow-sm my-3 border-l-4 border-l-blue-500" />
-                                        }
-                                        // Colore a diretriz de Video "(Visual: ...)"
-                                        if (content.startsWith('(Visual:')) {
-                                            return <p {...props} className="text-sm font-medium text-gray-500 dark:text-gray-400 italic mb-2 ml-1" />
-                                        }
-                                        return <p {...props} className="mb-4 leading-relaxed tracking-wide text-gray-600 dark:text-gray-300" />;
-                                    },
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-                                    strong: ({ node, ...props }: any) => <strong {...props} className="font-extrabold text-gray-900 dark:text-white" />
-                                }}
-                            >
-                                {generatedScript}
-                            </ReactMarkdown>
-                        </div>
+                        <ScriptMarkdown content={generatedScript} />
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 opacity-50">
                             <FileText className="w-16 h-16 mb-4" />

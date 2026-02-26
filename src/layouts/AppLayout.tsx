@@ -17,8 +17,8 @@ export default function AppLayout() {
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans flex flex-col lg:flex-row">
             {/* Mobile Header */}
             <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-20 flex items-center px-4 justify-between">
-                <div className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                    Bethel
+                <div className="flex items-center gap-2">
+                    <img src="/logo_full.png" className="h-8 w-auto dark:brightness-110 object-contain" alt="Bethel Logo" />
                 </div>
                 <button onClick={() => setIsMobileOpen(true)} className="p-2 -mr-2 text-gray-600 dark:text-gray-300">
                     <Menu className="w-6 h-6" />

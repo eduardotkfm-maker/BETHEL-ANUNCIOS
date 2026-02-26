@@ -11,6 +11,7 @@ interface AuthContextType {
     isAdmin: boolean;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
+    updateProfile: (data: Partial<Profile>) => Promise<void>;
 }
 
 interface Profile {
@@ -28,7 +29,8 @@ const AuthContext = createContext<AuthContextType>({
     isLoading: true,
     isAdmin: false,
     signOut: async () => { },
-    refreshProfile: async () => { }
+    refreshProfile: async () => { },
+    updateProfile: async () => { }
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -63,28 +65,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const updateProfile = async (data: Partial<Profile>) => {
+        if (!user) return;
+
+        // Se for demo, atualiza localmente
+        if (user.id === '00000000-0000-0000-0000-000000000000') {
+            const updatedProfile = profile ? { ...profile, ...data } : null;
+            setProfile(updatedProfile);
+            if (updatedProfile) {
+                localStorage.setItem('demo_profile', JSON.stringify(updatedProfile));
+            }
+            return;
+        }
+
+        // Real
+        const { error } = await supabase.from('profiles').update(data).eq('id', user.id);
+        if (error) throw error;
+        await refreshProfile();
+    };
+
     useEffect(() => {
+        const checkBypass = () => {
+            const isBypass = localStorage.getItem('demo_bypass') === 'true';
+            if (isBypass && !user) {
+                const mockUser = {
+                    id: '00000000-0000-0000-0000-000000000000',
+                    email: 'demo@bethel.com.br',
+                    user_metadata: { first_name: 'Usuário', last_name: 'Demo' }
+                } as any;
+                setUser(mockUser);
+                const savedProfile = localStorage.getItem('demo_profile');
+                let initialProfile = {
+                    id: '00000000-0000-0000-0000-000000000000',
+                    first_name: 'Usuário',
+                    last_name: 'Demo',
+                    avatar_url: null,
+                    is_admin: true
+                };
+
+                if (savedProfile) {
+                    try {
+                        initialProfile = { ...initialProfile, ...JSON.parse(savedProfile) };
+                    } catch (e) { }
+                }
+
+                setProfile(initialProfile);
+                setIsLoading(false);
+                return true;
+            }
+            return false;
+        };
+
         // Obter Sessão Inicial
         supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchProfile(session.user.id);
+            if (session) {
+                setSession(session);
+                setUser(session.user);
+                fetchProfile(session.user.id).then(() => setIsLoading(false));
             } else {
-                setIsLoading(false);
+                if (!checkBypass()) {
+                    setIsLoading(false);
+                }
             }
         });
 
         // Escutar Mudanças de Auth
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-
-            if (session?.user) {
+            if (session) {
+                setSession(session);
+                setUser(session.user);
                 fetchProfile(session.user.id).then(() => setIsLoading(false));
             } else {
-                setProfile(null);
-                setIsLoading(false);
+                if (!checkBypass()) {
+                    setSession(null);
+                    setUser(null);
+                    setProfile(null);
+                    setIsLoading(false);
+                }
             }
         });
 
@@ -95,9 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut();
     };
 
-    // Derive isAdmin from profile - also check demo_bypass for local dev convenience
-    const isAdmin = profile?.is_admin === true ||
-        localStorage.getItem('demo_bypass') === 'true';
+    // Bypass temporário: todos são admins enquanto desenvolve
+    const isAdmin = true;
 
     const value = {
         session,
@@ -106,7 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAdmin,
         signOut,
-        refreshProfile
+        refreshProfile,
+        updateProfile
     };
 
     return (

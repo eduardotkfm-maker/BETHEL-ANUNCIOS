@@ -123,7 +123,7 @@ export default function Products() {
                         <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
                             <Box className="w-6 h-6" />
                         </div>
-                        Produtos de Treinamento
+                        Meus Produtos
                     </h1>
                     <p className="mt-2 text-gray-600 dark:text-gray-400">
                         A base de conhecimento da sua Agência. A Inteligência Artificial virá aqui "estudar" seu produto antes de criar qualquer roteiro.
@@ -182,7 +182,7 @@ export default function Products() {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
-                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-800 shrink-0">
                             <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                                 {editingProduct ? <Edit2 className="w-5 h-5 text-indigo-600" /> : <Plus className="w-5 h-5 text-indigo-600" />}
                                 {editingProduct ? 'Editar Produto' : 'Novo Produto de Base'}
@@ -195,12 +195,12 @@ export default function Products() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Produto</label>
-                                    <input required type="text" className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
+                                    <input required type="text" className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
                                         value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
-                                    <select required className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
+                                    <select required className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
                                         value={formData.product_type} onChange={e => setFormData({ ...formData, product_type: e.target.value })}>
                                         <option value="Infoproduto">Infoproduto</option>
                                         <option value="Serviço Físico">Serviço Físico</option>
@@ -214,19 +214,19 @@ export default function Products() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nicho</label>
-                                    <input required type="text" placeholder="Ex: Marketing Digital, Nutrição" className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
+                                    <input required type="text" placeholder="Ex: Marketing Digital, Nutrição" className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
                                         value={formData.niche || ''} onChange={e => setFormData({ ...formData, niche: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Preço ou Valor</label>
-                                    <input type="text" placeholder="Ex: R$ 497,00" className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200"
+                                    <input type="text" placeholder="Ex: R$ 497,00" className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
                                         value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resumo Curto do Produto</label>
-                                <textarea className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200 resize-none h-20"
+                                <textarea className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200 resize-none h-20"
                                     placeholder="O que é o produto de forma rápida?"
                                     value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                             </div>
@@ -234,13 +234,13 @@ export default function Products() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">O Que Entrega? (Deliverables)</label>
-                                    <textarea required className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200 resize-none h-24"
+                                    <textarea required className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200 resize-none h-24"
                                         placeholder="Ex: 5 módulos, acesso vip de 1 ano, acompanhamento tático..."
                                         value={formData.deliverables || ''} onChange={e => setFormData({ ...formData, deliverables: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dor que Resolve (Pain)</label>
-                                    <textarea required className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-200 resize-none h-24"
+                                    <textarea required className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200 resize-none h-24"
                                         placeholder="Ex: Pessoas que não sabem fazer escala nos anúncios de face..."
                                         value={formData.pain_solved || ''} onChange={e => setFormData({ ...formData, pain_solved: e.target.value })} />
                                 </div>

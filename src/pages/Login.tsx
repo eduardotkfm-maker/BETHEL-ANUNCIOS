@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Video, Mail, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -79,10 +79,8 @@ export default function Login() {
             <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 relative z-10 w-full max-w-md mx-auto">
                 <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
                     <div className="text-center">
-                        <div className="mx-auto h-16 w-16 bg-gradient-to-tr from-indigo-500 to-cyan-400 rounded-2xl flex items-center justify-center p-0.5 shadow-2xl shadow-indigo-500/20 mb-6 group cursor-pointer" onClick={() => navigate('/')}>
-                            <div className="w-full h-full bg-gray-950 rounded-[14px] flex items-center justify-center group-hover:bg-transparent transition-colors duration-300">
-                                <Video className="w-8 h-8 text-white" />
-                            </div>
+                        <div className="mx-auto w-48 h-16 mb-6 group cursor-pointer transition-transform hover:scale-105" onClick={() => navigate('/')}>
+                            <img src="/logo_full.png" className="w-full h-full object-contain drop-shadow-2xl" alt="Bethel Logo" />
                         </div>
                         <h2 className="mt-6 text-3xl font-black tracking-tight text-white">
                             {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta VIP'}
@@ -171,7 +169,7 @@ export default function Login() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all shadow-lg hover:shadow-indigo-500/25"
+                                    className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-linear-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all shadow-lg hover:shadow-indigo-500/25"
                                 >
                                     {loading ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -203,14 +201,14 @@ export default function Login() {
 
             {/* Split Decorative Screen */}
             <div className="hidden lg:flex w-1/2 bg-gray-900 border-l border-gray-800 relative items-center justify-center p-12">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 to-cyan-900/10 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-linear-to-br from-indigo-900/20 to-cyan-900/10 pointer-events-none"></div>
                 <div className="relative z-10 space-y-6 max-w-lg">
-                    <div className="inline-block p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                        <Video className="w-8 h-8" />
+                    <div className="inline-block mb-6 h-16">
+                        <img src="/logo_full.png" className="h-full object-contain border border-indigo-500/20 rounded-2xl p-3 bg-indigo-500/5 shadow-inner" alt="Bethel Logo" />
                     </div>
                     <h1 className="text-4xl font-black text-white leading-tight">
                         A Automação Audiovisual <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Na Ponta dos Dedos</span>
+                        <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-400 to-cyan-400">Na Ponta dos Dedos</span>
                     </h1>
                     <p className="text-gray-400 text-lg leading-relaxed">
                         Conecte sua IA favorita a uma esteira Kanban de produção veloz. Chega de planilhas complexas, direcione seu time focado no criativo enquanto a tecnologia gerencia a aprovação.

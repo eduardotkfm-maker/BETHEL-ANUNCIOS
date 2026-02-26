@@ -1,12 +1,11 @@
 import { NavLink, Link } from 'react-router-dom';
-import { LayoutDashboard, FileText, Zap, Library, BarChart2, Video, Star, Kanban, Box, ChevronLeft, ChevronRight, X, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, Library, BarChart2, Star, Kanban, Box, ChevronLeft, ChevronRight, X, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
     { name: 'Visão Geral', path: '/', icon: LayoutDashboard },
-    { name: 'Produtos (Base RAG)', path: '/produtos', icon: Box },
+    { name: 'Meus Produtos', path: '/produtos', icon: Box },
     { name: 'Gerador de Roteiros', path: '/roteiros', icon: FileText },
-    { name: 'Modelos de Alta Conversão', path: '/modelos', icon: Zap },
     { name: 'Biblioteca de Anúncios', path: '/biblioteca', icon: Library },
     { name: 'Analisador de Anúncios', path: '/analisador', icon: BarChart2 },
     { name: 'Biblioteca de Ouro', path: '/biblioteca-ouro', icon: Star },
@@ -28,16 +27,15 @@ export function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
             ${isCollapsed ? 'w-20' : 'w-64'} 
             ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
         `}>
-            <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-3 relative`}>
-                <div className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-3'} w-full`}>
-                    <div className="p-2 bg-blue-600 rounded-lg shrink-0">
-                        <Video className="w-6 h-6 text-white" />
-                    </div>
-                    {!isCollapsed && (
-                        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 truncate block">
-                            Bethel
-                        </span>
-                    )}
+            <div className={`p-8 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-3 relative`}>
+                <div className={`w-full flex items-center justify-center overflow-hidden transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-4'} min-h-16`}>
+                    <img
+                        src={isCollapsed ? "/logo_symbol.png" : "/logo_full.png"}
+                        className={`transition-all duration-300 object-contain drop-shadow-xl dark:brightness-110 
+                            ${isCollapsed ? 'w-10 h-10' : 'w-full h-12 md:h-14'}
+                        `}
+                        alt="Bethel Logo"
+                    />
                 </div>
 
                 {/* Desktop Collapse Button */}
@@ -88,7 +86,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                             <div className="flex flex-col overflow-hidden w-full">
                                 <div className="flex justify-between items-center w-full">
                                     <span className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                        {profile?.first_name || 'Usuário'}
+                                        {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'Usuário'}
                                     </span>
                                     <Settings className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>

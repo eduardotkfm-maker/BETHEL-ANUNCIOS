@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Kanban, Clock, Trash2, Plus, X, Eye, Copy, Check } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { ScriptMarkdown } from '../components/ScriptMarkdown';
 
 interface Task {
     id: string; // uuid from DB
@@ -179,10 +180,10 @@ export default function ProductionWorkflow() {
 
     return (
         <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)] relative">
-            <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3 text-gray-900 dark:text-gray-100">
-                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
+                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400 shrink-0">
                             <Kanban className="w-6 h-6" />
                         </div>
                         Esteira de Produção
@@ -285,7 +286,7 @@ export default function ProductionWorkflow() {
                                 <input
                                     required
                                     type="text"
-                                    className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full p-3.5 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
                                     placeholder="Ex: Novo Anúncio de Retargeting"
                                     value={newTask.title || ''}
                                     onChange={e => setNewTask({ ...newTask, title: e.target.value })}
@@ -308,7 +309,7 @@ export default function ProductionWorkflow() {
             {viewScriptTask && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-800 shrink-0">
                             <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                                 <Eye className="w-5 h-5 text-indigo-600" /> Roteiro / Detalhes
                             </h2>
@@ -331,9 +332,9 @@ export default function ProductionWorkflow() {
                                     {isCopied ? 'Copiado' : 'Copiar'}
                                 </button>
                             </div>
-                            <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
-                                {viewScriptTask.script}
-                            </pre>
+                            <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <ScriptMarkdown content={viewScriptTask.script || ''} />
+                            </div>
                         </div>
                     </div>
                 </div>

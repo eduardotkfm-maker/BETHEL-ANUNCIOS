@@ -21,6 +21,9 @@ export interface ScriptGeneratorRequest {
     baseScript?: string;
     templateInstruction?: string;
     templateName?: string;
+    funnelStage?: 'topo' | 'meio' | 'fundo';
+    creativeModel?: string;
+    scriptCount?: number;
 }
 
 export interface ScriptGeneratorResponse {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Wand2, Video, Check, Sparkles, Link as LinkIcon } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { Wand2, Video, Check, Sparkles, Link as LinkIcon, Download, AlertTriangle } from 'lucide-react';
+import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { modelCreativeFromVideo } from '../lib/aiClient';
 import { supabase } from '../lib/supabase';
 import { useLocation } from 'react-router-dom';
@@ -14,7 +14,8 @@ export default function AdAnalyzer() {
     const [isModeling, setIsModeling] = useState(false);
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [videoUrl, setVideoUrl] = useState('');
-    const [modeledScript, setModeledScript] = useState<{ title: string, script: string } | null>(null);
+    const [modeledScript, setModeledScript] = useState<{ title: string, script: string | any[] } | null>(null);
+    const [driveFallback, setDriveFallback] = useState(false); // mostra painel de fallback guiado
 
     useEffect(() => {
         if (location.state?.sourceVideoUrl) {
@@ -32,47 +33,94 @@ export default function AdAnalyzer() {
         const file = e.target.files?.[0];
         if (file) {
             setVideoFile(file);
-            setVideoUrl(''); // Limpa o link se usuário escolheu arquivo
+            setVideoUrl('');
+            setDriveFallback(false);
+        }
+    };
+
+    // Helper: Extrai o ID de um link do Google Drive
+    const getDriveFileId = (url: string): string | null => {
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        return match?.[1] || null;
+    };
+
+    const processVideoFile = async (file: File) => {
+        setIsModeling(true);
+        const product = products.find(p => p.id === selectedProductId);
+
+        try {
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    const result = reader.result as string;
+                    resolve(result.split(',')[1]);
+                };
+                reader.onerror = () => reject('Erro ao ler o arquivo de vídeo.');
+            });
+
+            const mimeType = file.type || 'video/mp4';
+            const response = await modelCreativeFromVideo(base64, mimeType, product);
+
+            setModeledScript(response);
+
+            await supabase.from('creative_production_tasks').insert([{
+                title: response.title || 'Criativo Modelado da Concorrência',
+                script: response.script,
+                status: 'idea'
+            }]);
+        } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            console.error("Erro no processamento de vídeo:", error);
+            alert(error?.message || "Erro ao analisar o vídeo. Tente um arquivo menor ou verifique sua conexão.");
+        } finally {
+            setIsModeling(false);
         }
     };
 
     const handleModelVideo = async () => {
         if ((!videoFile && !videoUrl) || !selectedProductId) return;
 
-        if (videoUrl && !videoFile) {
-            alert("A extração direta por Link Social ainda requer um ambiente backend scraper para pular bloqueios CORS/DRM. Para rodar a Modelação, baixe o vídeo e use a opção de 'Upload .MP4' enquanto conectamos essa API de extração.");
-            return;
-        }
-
         setIsModeling(true);
+        setDriveFallback(false);
+
         try {
-            const product = products.find(p => p.id === selectedProductId);
-
-            // Lê o arquivo como base64 (se for um arquivo carregado)
+            // Caminho 1: Arquivo local (upload direto)
             if (videoFile) {
-                const reader = new FileReader();
-                reader.readAsDataURL(videoFile);
-                reader.onload = async () => {
-                    const base64Data = (reader.result as string).split(',')[1];
-                    const mimeType = videoFile.type;
-
-                    const response = await modelCreativeFromVideo(base64Data, mimeType, product);
-                    setModeledScript(response);
-
-                    // Auto-salvar no Kanban
-                    await supabase.from('creative_production_tasks').insert([{
-                        title: response.title || 'Criativo Modelado da Concorrência',
-                        script: response.script,
-                        status: 'idea'
-                    }]);
-                    setIsModeling(false);
-                };
-                reader.onerror = error => {
-                    console.error("Erro na leitura do arquivo", error);
-                    setIsModeling(false);
-                    alert("Erro interno ao ler o arquivo MP4.");
-                };
+                await processVideoFile(videoFile);
+                return;
             }
+
+            // Caminho 2: Link do Google Drive (tentativa automática)
+            const driveId = getDriveFileId(videoUrl);
+            if (driveId) {
+                try {
+                    const directUrl = `https://drive.google.com/uc?export=download&id=${driveId}`;
+                    const res = await fetch(directUrl);
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    const blob = await res.blob();
+
+                    if (blob.size < 1000) {
+                        // Google retornou uma página HTML de confirmação, não o vídeo real
+                        throw new Error('Arquivo muito grande ou acesso restrito');
+                    }
+
+                    const file = new File([blob], 'drive_video.mp4', { type: 'video/mp4' });
+                    await processVideoFile(file);
+                    return;
+                } catch (driveErr) {
+                    console.warn('Download automático do Drive falhou, mostrando fallback:', driveErr);
+                    setIsModeling(false);
+                    setDriveFallback(true);
+                    return;
+                }
+            }
+
+            // Caminho 3: Outros links (YouTube, TikTok, etc.) — ainda sem suporte
+            alert("A extração direta por Link Social ainda requer um backend. Baixe o vídeo manualmente e use a opção 'Upload .MP4'.");
+            setIsModeling(false);
+
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Erro na modelagem:', err);
             alert("Ocorreu um erro chamando a IA. " + err.message);
@@ -102,7 +150,7 @@ export default function AdAnalyzer() {
                         <div>
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">1. Produto Destino</label>
                             <select
-                                className="w-full pl-4 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-900 outline-none transition-all font-medium text-gray-700 dark:text-gray-300"
+                                className="w-full pl-4 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all font-medium text-gray-700 dark:text-gray-300"
                                 value={selectedProductId}
                                 onChange={(e) => setSelectedProductId(e.target.value)}
                             >
@@ -131,11 +179,12 @@ export default function AdAnalyzer() {
                                     <input
                                         type="url"
                                         placeholder="Colar link (Reels, TikTok...)"
-                                        className="w-full h-full pl-11 pr-4 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-900 outline-none transition-all text-sm font-medium"
+                                        className="w-full h-full pl-11 pr-4 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-100"
                                         value={videoUrl}
                                         onChange={(e) => {
                                             setVideoUrl(e.target.value);
                                             if (e.target.value) setVideoFile(null);
+                                            setDriveFallback(false);
                                         }}
                                         disabled={isModeling}
                                     />
@@ -146,11 +195,48 @@ export default function AdAnalyzer() {
                         <button
                             onClick={handleModelVideo}
                             disabled={(!videoFile && !videoUrl) || !selectedProductId || isModeling}
-                            className="w-full mt-4 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-lg rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center justify-center gap-2"
+                            className="w-full mt-4 py-4 bg-linear-to-r from-indigo-600 to-purple-600 text-white font-black text-lg rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center justify-center gap-2"
                         >
                             <Wand2 className="w-5 h-5" />
                             {isModeling ? 'Decifrando Roteiro Original...' : 'Iniciar Clonagem Estrutural'}
                         </button>
+
+                        {/* ── Fallback Guiado para Google Drive ────────── */}
+                        {driveFallback && videoUrl && (
+                            <div className="mt-4 p-5 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <div className="flex items-start gap-3 mb-4">
+                                    <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-bold text-amber-800 dark:text-amber-300 text-sm">O Google Drive bloqueou o acesso direto</h4>
+                                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">O arquivo pode ser grande ou tem restrição de compartilhamento. Siga estes 2 passos rápidos:</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-amber-200 dark:border-gray-700">
+                                        <span className="shrink-0 w-7 h-7 bg-amber-500 text-white rounded-full flex items-center justify-center font-black text-xs">1</span>
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-1">Clique abaixo para baixar o vídeo do Drive</span>
+                                        <a
+                                            href={videoUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors"
+                                        >
+                                            <Download className="w-3.5 h-3.5" /> Abrir no Drive
+                                        </a>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-amber-200 dark:border-gray-700">
+                                        <span className="shrink-0 w-7 h-7 bg-indigo-500 text-white rounded-full flex items-center justify-center font-black text-xs">2</span>
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-1">Depois que baixar, suba o arquivo aqui:</span>
+                                        <label className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer">
+                                            <Video className="w-3.5 h-3.5" /> Upload MP4
+                                            <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={handleVideoUpload} />
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -167,39 +253,14 @@ export default function AdAnalyzer() {
                                 <Check className="w-4 h-4" /> Enviado para a Esteira (Ideias)
                             </span>
                         </div>
-                        <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none">
-                            <ReactMarkdown
-                                components={{
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-                                    h3: ({ node, ...props }: any) => {
-                                        const isHook = String(props.children).toUpperCase().includes('HOOK');
-                                        return (
-                                            <h3
-                                                {...props}
-                                                className={`mt-6 mb-3 px-3 py-1.5 rounded-lg inline-block ${isHook
-                                                    ? 'bg-amber-100/80 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 font-black border border-amber-200 dark:border-amber-800/50'
-                                                    : 'bg-indigo-50/80 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 font-bold border border-indigo-100 dark:border-indigo-800/50'
-                                                    }`}
-                                            />
-                                        );
-                                    },
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-                                    p: ({ node, ...props }: any) => {
-                                        const content = String(props.children);
-                                        if (content.includes('🎙️ Fala') || content.includes('🎙️ Fone')) {
-                                            return <p {...props} className="text-gray-800 dark:text-gray-200 leading-relaxed bg-white border border-gray-100 dark:border-gray-800 dark:bg-gray-900 p-4 rounded-xl shadow-sm my-3 border-l-4 border-l-blue-500" />
-                                        }
-                                        if (content.startsWith('(Visual:')) {
-                                            return <p {...props} className="text-sm font-medium text-gray-500 dark:text-gray-400 italic mb-2 ml-1" />
-                                        }
-                                        return <p {...props} className="mb-4 leading-relaxed tracking-wide text-gray-600 dark:text-gray-300" />;
-                                    },
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-                                    strong: ({ node, ...props }: any) => <strong {...props} className="font-extrabold text-gray-900 dark:text-white" />
-                                }}
-                            >
-                                {modeledScript.script}
-                            </ReactMarkdown>
+                        <div className="mt-4">
+                            <ScriptMarkdown
+                                content={typeof modeledScript.script === 'string'
+                                    ? modeledScript.script
+                                    : Array.isArray(modeledScript.script)
+                                        ? modeledScript.script.map((s: any) => `### ${s.title || s.hook || s.section || ''}\n\n(Visual: ${s.visual || ''})\n\n🎙️ Fala: "${s.audio || s.fala || s.text || s.script || ''}"`).join('\n\n')
+                                        : JSON.stringify(modeledScript.script, null, 2)}
+                            />
                         </div>
                     </div>
                 </div>
