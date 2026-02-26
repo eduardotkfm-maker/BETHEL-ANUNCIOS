@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Box, X, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Product {
     id: string;
@@ -14,11 +15,10 @@ interface Product {
 }
 
 export default function Products() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { user } = useAuth();
     const [products, setProducts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
     const [formData, setFormData] = useState<Partial<Product>>({
@@ -32,10 +32,12 @@ export default function Products() {
     });
 
     const fetchProducts = async () => {
+        if (!user) return;
         setIsLoading(true);
         const { data, error } = await supabase
             .from('products')
             .select('*')
+            .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
         if (!error && data) {
@@ -46,10 +48,9 @@ export default function Products() {
         setIsLoading(false);
     };
 
-    // eslint-disable-next-line
     useEffect(() => {
-        fetchProducts();
-    }, []);
+        if (user) fetchProducts();
+    }, [user]);
 
     const handleOpenModal = (product?: Product) => {
         if (product) {
@@ -72,6 +73,7 @@ export default function Products() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) return;
 
         if (editingProduct) {
             const { error } = await supabase
@@ -88,7 +90,7 @@ export default function Products() {
         } else {
             const { error } = await supabase
                 .from('products')
-                .insert([formData]);
+                .insert([{ ...formData, user_id: user.id }]);
 
             if (!error) {
                 fetchProducts();
@@ -141,9 +143,9 @@ export default function Products() {
                 <div className="flex justify-center p-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
                 </div>
-            ) : (
+            ) : products && products.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {products.map(product => (
+                    {products.map((product: any) => (
                         <div key={product.id} className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 flex flex-col hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
@@ -170,11 +172,10 @@ export default function Products() {
                             </div>
                         </div>
                     ))}
-                    {products.length === 0 && (
-                        <div className="col-span-full py-12 text-center text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
-                            Nenhum produto de treinamento encontrado. Crie o seu primeiro para calibrar a Inteligência Artificial!
-                        </div>
-                    )}
+                </div>
+            ) : (
+                <div className="col-span-full py-12 text-center text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
+                    Nenhum produto de treinamento encontrado. Crie o seu primeiro para calibrar a Inteligência Artificial!
                 </div>
             )}
 

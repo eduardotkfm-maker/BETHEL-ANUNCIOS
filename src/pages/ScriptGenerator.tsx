@@ -4,10 +4,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { generateScript } from '../lib/agents/scriptGeneratorAgent';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ScriptGenerator() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     // Recovery of Template Instruction passed by AdCard (ConversionModels)
     const [templateInstruction, setTemplateInstruction] = useState<string | undefined>(
@@ -80,13 +82,14 @@ export default function ScriptGenerator() {
 
     useEffect(() => {
         const fetchProducts = async () => {
-            const { data, error } = await supabase.from('products').select('*');
+            if (!user) return;
+            const { data, error } = await supabase.from('products').select('*').eq('user_id', user.id);
             if (!error && data) {
                 setProducts(data);
             }
         };
         fetchProducts();
-    }, []);
+    }, [user]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
@@ -129,7 +132,8 @@ export default function ScriptGenerator() {
                 .insert([{
                     title: fallbackTitle,
                     script: response.script,
-                    status: 'idea'
+                    status: 'idea',
+                    user_id: user?.id
                 }]);
 
             if (!dbError) {
@@ -190,7 +194,8 @@ export default function ScriptGenerator() {
                 .insert([{
                     title: fallbackTitle,
                     script: response.script,
-                    status: 'idea'
+                    status: 'idea',
+                    user_id: user?.id
                 }]);
 
             if (!dbError) {

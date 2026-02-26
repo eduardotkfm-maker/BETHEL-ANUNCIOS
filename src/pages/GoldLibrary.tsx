@@ -253,7 +253,7 @@ Crie um roteiro realista entre 30 a 60 segundos focado na DOR do usuário, focan
 
 export default function GoldLibrary() {
     const navigate = useNavigate();
-    const { isAdmin } = useAuth();
+    const { isAdmin, user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterNiche, setFilterNiche] = useState('Todos');
     const [isLoading, setIsLoading] = useState(true);
@@ -290,10 +290,12 @@ export default function GoldLibrary() {
     }, []);
 
     const fetchCreatives = async () => {
+        if (!user) return;
         setIsLoading(true);
         const { data, error } = await supabase
             .from('gold_library')
             .select('*')
+            .or(`user_id.eq.${user.id},user_id.is.null`)
             .order('created_at', { ascending: false });
 
         if (!error && data) {
@@ -305,9 +307,11 @@ export default function GoldLibrary() {
     };
 
     const fetchNiches = async () => {
+        if (!user) return;
         const { data, error } = await supabase
             .from('niches')
             .select('*')
+            .or(`user_id.eq.${user.id},user_id.is.null`)
             .order('name', { ascending: true });
 
         if (!error && data) {
@@ -325,7 +329,7 @@ export default function GoldLibrary() {
         try {
             const { data, error } = await supabase
                 .from('niches')
-                .insert([{ name: newNicheName.trim() }])
+                .insert([{ name: newNicheName.trim(), user_id: user?.id }])
                 .select()
                 .single();
 
@@ -462,6 +466,7 @@ export default function GoldLibrary() {
                     style: newCreative.style || STYLES[0],
                     url: finalVideoUrl,
                     thumbnail_url: finalThumbnailUrl,
+                    user_id: user?.id
                 }])
                 .select()
                 .single();

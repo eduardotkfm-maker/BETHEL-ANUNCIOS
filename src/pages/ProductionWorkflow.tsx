@@ -3,6 +3,7 @@ import { Kanban, Clock, Trash2, Plus, X, Eye, Copy, Check } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ScriptMarkdown } from '../components/ScriptMarkdown';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Task {
     id: string; // uuid from DB
@@ -15,16 +16,21 @@ interface Task {
 export default function ProductionWorkflow() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuth();
+
 
     const [tasks, setTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Initial Load & Realtime Sync
     useEffect(() => {
+        if (!user) return;
+
         const fetchTasks = async () => {
             const { data, error } = await supabase
                 .from('creative_production_tasks')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (!error && data) {
@@ -36,12 +42,17 @@ export default function ProductionWorkflow() {
         };
         fetchTasks();
 
-        // Subscription to Realtime Updates
+        // Subscription to Realtime Updates (Filtrado por user_id no client-side for safety or postgres filter if possible)
         const subscription = supabase
-            .channel('creative_production_tasks_channel')
+            .channel(`tasks_${user.id}`)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'creative_production_tasks' },
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'creative_production_tasks',
+                    filter: `user_id=eq.${user.id}`
+                },
                 (payload) => {
                     if (payload.eventType === 'INSERT') {
                         setTasks((prev) => {
@@ -60,12 +71,12 @@ export default function ProductionWorkflow() {
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, []);
+    }, [user]);
 
     // Handle incoming scripts from AdAnalyzer
     useEffect(() => {
         const handleIncomingScript = async () => {
-            if (location.state && location.state.newTaskTitle) {
+            if (user && location.state && location.state.newTaskTitle) {
                 const { newTaskTitle } = location.state;
 
                 // Clear the state so it doesn't re-add on refresh
@@ -78,7 +89,8 @@ export default function ProductionWorkflow() {
                     .from('creative_production_tasks')
                     .insert([{
                         title: newTaskTitle,
-                        status: 'idea'
+                        status: 'idea',
+                        user_id: user.id
                     }])
                     .select()
                     .single();
@@ -90,7 +102,7 @@ export default function ProductionWorkflow() {
         };
 
         handleIncomingScript();
-    }, [location.state, navigate, tasks]);
+    }, [location.state, navigate, tasks, user]);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [newTask, setNewTask] = useState<Partial<Task>>({ status: 'idea' });
@@ -162,7 +174,8 @@ export default function ProductionWorkflow() {
             .from('creative_production_tasks')
             .insert([{
                 title: newTask.title,
-                status: 'idea'
+                status: 'idea',
+                user_id: user?.id
             }])
             .select()
             .single();

@@ -4,9 +4,12 @@ import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { modelCreativeFromVideo } from '../lib/aiClient';
 import { supabase } from '../lib/supabase';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AdAnalyzer() {
     const location = useLocation();
+    const { user } = useAuth();
+
 
     // states para Módulo de Modelagem (Vídeo)
     const [products, setProducts] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -23,11 +26,12 @@ export default function AdAnalyzer() {
         }
 
         const fetchProducts = async () => {
-            const { data } = await supabase.from('products').select('*');
+            if (!user) return;
+            const { data } = await supabase.from('products').select('*').eq('user_id', user.id);
             if (data) setProducts(data);
         };
         fetchProducts();
-    }, []);
+    }, [user, location.state]);
 
     const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -67,7 +71,8 @@ export default function AdAnalyzer() {
             await supabase.from('creative_production_tasks').insert([{
                 title: response.title || 'Criativo Modelado da Concorrência',
                 script: response.script,
-                status: 'idea'
+                status: 'idea',
+                user_id: user?.id
             }]);
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error("Erro no processamento de vídeo:", error);

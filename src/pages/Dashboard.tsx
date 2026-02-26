@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Lightbulb, CheckCircle2, Scissors, PlayCircle, Clock, ArrowRight, TrendingUp, Activity, FileText, Target, Flame } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -16,6 +17,8 @@ const formatRelativeTime = (dateString: string) => {
 };
 
 export default function Dashboard() {
+    const { user } = useAuth();
+
     const [taskCounts, setTaskCounts] = useState({
         idea: 0,
         approved: 0,
@@ -40,6 +43,7 @@ export default function Dashboard() {
             const { data: workflowData, error: workflowError } = await supabase
                 .from('creative_production_tasks')
                 .select('*')
+                .eq('user_id', user?.id)
                 .order('created_at', { ascending: false });
 
             if (!workflowError && workflowData) {
@@ -86,7 +90,7 @@ export default function Dashboard() {
             setIsLoading(false);
         };
         fetchData();
-    }, []);
+    }, [user]);
 
     const metrics = [
         {
