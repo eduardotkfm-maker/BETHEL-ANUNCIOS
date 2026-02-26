@@ -276,7 +276,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="w-full bg-gray-800/50 h-2.5 rounded-full overflow-hidden p-0.5 border border-gray-700/50">
                                     <div
-                                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 relative transition-all duration-1000 ease-out"
+                                        className="h-full rounded-full bg-linear-to-r from-indigo-500 to-purple-500 relative transition-all duration-1000 ease-out"
                                         style={{ width: `${Math.min(100, (weeklyProgress.scriptsGenerated / weeklyProgress.scriptGoal) * 100)}%` }}
                                     >
                                         <div className="absolute inset-0 bg-white/20 w-full h-full"></div>
@@ -305,7 +305,7 @@ export default function Dashboard() {
                         </div>
 
                         <div className="mt-6 pt-5 border-t border-gray-800/50">
-                            <Link to="/roteiros" className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black transition-all shadow-lg hover:shadow-orange-500/25 group text-sm">
+                            <Link to="/roteiros" className="flex items-center justify-between p-4 rounded-xl bg-linear-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black transition-all shadow-lg hover:shadow-orange-500/25 group text-sm">
                                 <span>Bater Meta: Novo Roteiro</span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </Link>

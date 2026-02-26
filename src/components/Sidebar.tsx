@@ -78,7 +78,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                         {profile?.avatar_url ? (
                             <img src={profile.avatar_url} alt="User Avatar" className="w-8 h-8 rounded-full shadow-sm shrink-0 border border-gray-200 dark:border-gray-700 object-cover" />
                         ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-indigo-500/20">
+                            <div className="w-8 h-8 rounded-full bg-linear-to-tr from-indigo-500 to-cyan-500 shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-indigo-500/20">
                                 {profile?.first_name ? profile.first_name.charAt(0).toUpperCase() : 'B'}
                             </div>
                         )}

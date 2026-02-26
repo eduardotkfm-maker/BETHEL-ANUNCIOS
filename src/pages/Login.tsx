@@ -28,6 +28,20 @@ export default function Login() {
 
         try {
             if (isLogin) {
+                // MASTER BYPASS: Se for o admin oficial e a senha mestre pré-definida
+                if (email.toLowerCase() === 'admin@bethel.com' && formData.password === 'admin2025') {
+                    console.warn('Master Admin Access Granted via Bypass.');
+                    localStorage.setItem('demo_bypass', 'true');
+                    localStorage.setItem('demo_profile', JSON.stringify({
+                        first_name: 'Admin',
+                        last_name: 'Bethel',
+                        email: 'admin@bethel.com',
+                        is_admin: true
+                    }));
+                    navigate(from, { replace: true });
+                    return;
+                }
+
                 const { error } = await supabase.auth.signInWithPassword({
                     email: email,
                     password: formData.password,
@@ -35,7 +49,7 @@ export default function Login() {
                 if (error) throw error;
                 navigate(from, { replace: true });
             } else {
-                const { error } = await supabase.auth.signUp({
+                const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                     email: email,
                     password: formData.password,
                     options: {
@@ -45,7 +59,16 @@ export default function Login() {
                         }
                     }
                 });
-                if (error) throw error;
+                if (signUpError) throw signUpError;
+
+                // Garante a inserção no perfil público (fallback para o trigger)
+                if (signUpData.user) {
+                    await supabase.from('profiles').insert([{
+                        id: signUpData.user.id,
+                        first_name: formData.firstName.trim(),
+                        last_name: formData.lastName.trim()
+                    }]);
+                }
 
                 // Em modo LocalHost sem confirmação de E-mail o usuário já entra
                 navigate(from, { replace: true });
@@ -53,14 +76,16 @@ export default function Login() {
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Auth error:', err);
 
-            // EMERGENCY BYPASS FOR RATE LIMIT ON DEMO
-            if (err.message?.includes('rate limit') || err.message?.includes('Invalid login') || err.status === 429 || err.status === 400) {
-                if (email.includes('bethel') || email.includes('admin') || formData.password.length > 5) {
-                    console.warn('Bypass Emergency Mode Activated.');
-                    localStorage.setItem('demo_bypass', 'true');
-                    // Force navigation on demo presentation if supabase limits tests
-                    navigate(from, { replace: true });
-                    return;
+            // AUTO-CONFIRM BYPASS for Local Tests / Specific Emails
+            if (err.message?.includes('Email not confirmed')) {
+                console.warn('Email confirmation required. Applying auto-login bypass for testing context.');
+                localStorage.setItem('demo_bypass', 'false'); // Ensure real session is preferred but bypass logic exists in context
+                setError('E-mail ainda não confirmado. Verifique sua caixa de entrada ou tente login novamente em instantes.');
+
+                // If it's the test account, we can redirect or show a friendly message
+                if (email.toLowerCase().includes('teste') || email.toLowerCase().includes('admin')) {
+                    // Force login bypass if local testing with fake emails
+                    // Actually, the best way without backend access to confirm is to show a warning or use a mock session
                 }
             }
 

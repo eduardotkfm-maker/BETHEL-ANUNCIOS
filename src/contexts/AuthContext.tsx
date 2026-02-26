@@ -87,27 +87,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const checkBypass = () => {
             const isBypass = localStorage.getItem('demo_bypass') === 'true';
-            if (isBypass && !user) {
+            if (isBypass) {
+                const savedProfile = localStorage.getItem('demo_profile');
+                let parsedProfile = null;
+                if (savedProfile) {
+                    try { parsedProfile = JSON.parse(savedProfile); } catch (e) { }
+                }
+
                 const mockUser = {
                     id: '00000000-0000-0000-0000-000000000000',
-                    email: 'demo@bethel.com.br',
-                    user_metadata: { first_name: 'Usuário', last_name: 'Demo' }
+                    email: parsedProfile?.email || 'demo@bethel.com.br',
+                    user_metadata: {
+                        first_name: parsedProfile?.first_name || 'Usuário',
+                        last_name: parsedProfile?.last_name || 'Demo'
+                    }
                 } as any;
                 setUser(mockUser);
-                const savedProfile = localStorage.getItem('demo_profile');
-                let initialProfile = {
-                    id: '00000000-0000-0000-0000-000000000000',
-                    first_name: 'Usuário',
-                    last_name: 'Demo',
-                    avatar_url: null,
-                    is_admin: true
-                };
 
-                if (savedProfile) {
-                    try {
-                        initialProfile = { ...initialProfile, ...JSON.parse(savedProfile) };
-                    } catch (e) { }
-                }
+                const initialProfile = {
+                    id: '00000000-0000-0000-0000-000000000000',
+                    first_name: parsedProfile?.first_name || 'Usuário',
+                    last_name: parsedProfile?.last_name || 'Demo',
+                    avatar_url: null,
+                    is_admin: (parsedProfile?.email === 'admin@bethel.com')
+                };
 
                 setProfile(initialProfile);
                 setIsLoading(false);
@@ -122,10 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setSession(session);
                 setUser(session.user);
                 fetchProfile(session.user.id).then(() => setIsLoading(false));
-            } else {
-                if (!checkBypass()) {
-                    setIsLoading(false);
-                }
+            } else if (!checkBypass()) {
+                setIsLoading(false);
             }
         });
 
@@ -135,13 +136,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setSession(session);
                 setUser(session.user);
                 fetchProfile(session.user.id).then(() => setIsLoading(false));
-            } else {
-                if (!checkBypass()) {
-                    setSession(null);
-                    setUser(null);
-                    setProfile(null);
-                    setIsLoading(false);
-                }
+            } else if (!checkBypass()) {
+                setSession(null);
+                setUser(null);
+                setProfile(null);
+                setIsLoading(false);
             }
         });
 
@@ -149,11 +148,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signOut = async () => {
+        localStorage.removeItem('demo_bypass');
+        localStorage.removeItem('demo_profile');
         await supabase.auth.signOut();
     };
 
-    // Bypass temporário: todos são admins enquanto desenvolve
-    const isAdmin = true;
+    // Verificação de Admin: pelo banco de dados ou e-mail mestre
+    const isAdmin = profile?.is_admin || user?.email === 'admin@bethel.com';
 
     const value = {
         session,
