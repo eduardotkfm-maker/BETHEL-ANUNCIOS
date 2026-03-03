@@ -61,7 +61,7 @@ def start_server(port=3000):
     root = get_project_root()
     cmd = get_start_command(root)
     
-    if not cmd:
+    if cmd is None:
         print("❌ No 'dev' or 'start' script found in package.json")
         sys.exit(1)
     

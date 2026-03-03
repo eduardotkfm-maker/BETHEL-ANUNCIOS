@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Star, Plus, Search, Filter, Video, Trash2, X, Play, Download, Wand2, UploadCloud, FolderOpen, ChevronLeft, Folder, Settings, UserCircle, Zap, Headphones, HeartPulse, SplitSquareHorizontal, MonitorPlay, AlertTriangle, Mic } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Star, Plus, Search, Filter, Video, Trash2, X, Download, Wand2, UploadCloud, FolderOpen, ChevronLeft, Folder, Settings, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { AdCard } from '../components/AdCard';
+
+import { ModelCard } from '../components/GoldLibrary/ModelCard';
+import { VideoCard } from '../components/GoldLibrary/VideoCard';
 
 interface Creative {
     id: string;
@@ -15,241 +17,26 @@ interface Creative {
     thumbnail_url?: string;
 }
 
-interface Niche {
+interface Category {
     id: string;
     name: string;
 }
 
-const STYLES = [
-    'TELA DIVIDIDA',
-    'SENTADO MOSTRANDO TELA',
-    'SELFIE',
-    'NOVELINHA',
-    'NOTÍCIA',
-    'NO CARRO SOZINHO',
-    'NO CARRO EM DUAS PESSOAS',
-    'MOSTRANDO O PRODUTO',
-    'FALSO PODCAST',
-    'CAMINHANDO',
-    'CÂMERA TRASEIRA 0.5',
-    'CAIXA DE PERGUNTAS',
-    'ANTES x DEPOIS - iPad',
-    '2 PESSOAS CONVERSANDO',
-    'PROFISSÕES',
-];
+interface Model {
+    id: string;
+    title: string;
+    niche: string;
+    icon_name: string;
+    bg_gradient: string;
+    ctr: string;
+    roas: string;
+    views: string;
+    prompt_instruction: string;
+    example_video_url?: string;
+    example_thumbnail_url?: string;
+}
 
-const MODELS_DATA = [
-    {
-        title: 'UGC Autêntico (Selfie)',
-        niche: 'Geral / Produto Físico',
-        icon: UserCircle,
-        bgGradient: 'from-blue-500 to-cyan-500',
-        ctr: '4.8%',
-        roas: '6.2x',
-        views: '2.1M',
-        promptInstruction: `Você é um Copywriter especialista em UGC (User Generated Content) no TikTok/Reels.
-Crie um roteiro realista entre 30 a 60 segundos focado na DOR do usuário, focando numa comunicação nativa como se fosse 'um amigo recomendando algo'.
 
-### [HOOK RÁPIDO - 0-3s]
-(Visual: Câmera na mão estilo selfie, iluminação natural, segurando o produto em movimento curto)
-🎙️ Fala: Uma frase de impacto agressivo abordando uma [DOR COMUM] ou uma Quebra de Expectativa. Sem 'Oi gente'.
-
-### [CONEXÃO UGC - 3-15s]
-(Visual: B-roll alternado com rosto da pessoa sofrendo ou explicando como resolveu o problema)
-🎙️ Fala: O 'Eu te entendo'. A narrativa de que tentou várias coisas ruins, até encontrar isso. Apresente o Mecanismo Único de forma orgânica.
-
-### [PROVA RÁPIDA E OFERTA - 15-30s]
-(Visual: Texto nativo do Instagram na tela mostrando depoimento rápido ou resultado real)
-🎙️ Fala: "E não acreditei quando vi [RESULTADO ESPERADO]. Eles tão com promoção na loja".
-
-### [CALL TO ACTION - 30s+]
-(Visual: Dedo apontando rápido pro link e tela tremendo de aprovação)
-🎙️ Fala: "Clica e pede antes que esgote e tenham que repor".`
-    },
-    {
-        title: 'Mini VSL Disruptivo',
-        niche: 'Infoprodutos / Serviços',
-        icon: Zap,
-        bgGradient: 'from-purple-500 to-indigo-500',
-        ctr: '3.9%',
-        roas: '8.5x',
-        views: '950K',
-        promptInstruction: `Você é o mestre da conversão em VSLs Cinematográficas. O objetivo é vender Lógica com Emoção subliminar em até 60s.
-
-### [HOOK CIENTÍFICO/CHOCANTE - 0-5s]
-(Visual: Gráfico branco explodindo num fundo preto ou matéria sensacionalista recortada de jornal. Ação rápida, sem locutor aparecendo no primeiro milissegundo)
-🎙️ Fala (Voz Forte): Uma constatação que fere o ego do prospecto, desmistificando o principal mito sobre a [DOR]. 
-
-### [CRIANDO O INIMIGO COMUM - 5-20s]
-(Visual: Animação simples de lousa/quadro demonstrando a complexidade vs simplicidade)
-🎙️ Fala: Jogue a culpa do fracasso do cliente no 'sistema tradicional' ou no 'consenso antigo' e mostre que [NOME DO PRODUTO] não é convencional.
-
-### [PITCH DO MECANISMO ÚNICO - 20-45s]
-(Visual: Flash criativo do Produto / Plataforma em alta resolução)
-🎙️ Fala: Um soco de lógica mostrando que o sistema entrega [RESULTADOS] rápido por causa do [MECANISMO SECRETO].
-
-### [ESCASSEZ LÓGICA E CTA - 45s+]
-(Visual: Barra de progresso de vagas se esgotando ou contagem regressiva tensa)
-🎙️ Fala: "Liberei 30 vagas com desconto de early access. Clique no Saiba Mais. Seja rápido."`
-    },
-    {
-        title: 'ASMR Storytelling',
-        niche: 'Estética / Tech / Unboxing',
-        icon: Headphones,
-        bgGradient: 'from-emerald-500 to-teal-400',
-        ctr: '5.5%',
-        roas: '4.1x',
-        views: '3.4M',
-        promptInstruction: `Ignore todas as músicas. Aqui o formato é focado nos ruídos satisfatórios, silêncio estratégico e uma voz calma enquanto revela resultados visuais potentes.
-
-### [GANCHO ASMR PURO - 0-4s]
-(Visual: MACRO (super perto). Som ALTO de estilete rasgando fita, unhas batendo no plástico ou creme sendo retirado. ZERO LOCUÇÃO NOS PRIMEIROS SEGUNDOS.)
-🎙️ Fone: Somente a textura audível da imagem.
-
-### [REVELAÇÃO SATISFATÓRIA - 4-15s]
-(Visual: Textura do produto sendo aplicada ou led do Tech Gadget acendendo de forma fluida e suave)
-🎙️ Fala (Voz calma próxima do microfone): "Me disseram que o [NOME DO PRODUTO] resolvia [DOR], mas eu não esperava por isso..."
-
-### [USO RELAXANTE - 15-25s]
-(Visual: Time-lapse sedoso do produto funcionando na tela ou pele clareando com o creme)
-🎙️ Fala (Suave): "É bizarro como ele me entrega [RESULTADO ESPERADO] com esse mecanismo premium..."
-
-### [CTA SUTIL - 25s+]
-(Visual: O produto é finalizado ou pousado de volta harmoniosamente. O texto do link aparece.)
-🎙️ Fala (Suave): "O link tá fixado embaixo. Vale o hype."`
-    },
-    {
-        title: 'O Conflito Narrativo (Storytelling)',
-        niche: 'Saúde / Bem Estar / Coach',
-        icon: HeartPulse,
-        bgGradient: 'from-orange-500 to-rose-500',
-        ctr: '2.8%',
-        roas: '3.9x',
-        views: '800K',
-        promptInstruction: `O usuário quer comprar esperança. Seja vulnerável, doloroso e heroico em até 90 segundos. Sem tom 'empresarial', crie algo visceral.
-
-### [O FUNDO DO POÇO - 0-10s]
-(Visual: Ator ou Founder em um cômodo com pouca luz, sentando devagar, encarando a lente)
-🎙️ Fala (Tom de confissão exausta): O gatilho emocional exato da vergonha ou estresse que o público alvo sofre ao não ter [RESULTADO ESPERADO].
-
-### [A DESCOBERTA ACIDENTAL - 10-30s]
-(Visual: Corte para o rosto um pouco mais tenso. Pega algum objeto que simbolize o Método Antigo na mão)
-🎙️ Fala: "Gastei os últimos anos pulando de galho em galho, mas o segredo de verdade cruzou meu caminho de forma silenciosa." 
-
-### [A TRANSIÇÃO HERÓICA - 30-45s]
-(Visual: Câmera levanta, luz do sol invade, entra música inspiracional)
-🎙️ Fala: "No dia que apliquei [NOME DO PRODUTO], e ativei o [MECANISMO DA FERRAMENTA], tudo virou. Eu estava curado."
-
-### [A MÃO ESTENDIDA - 45s+]
-(Visual: Mão esticada ou olhar fraterno direto)
-🎙️ Fala: "Se você dói do mesmo lugar que eu doía... Clique agora. Não sofra mais um dia."`
-    },
-    {
-        title: 'Split-Screen: Antes VS Depois',
-        niche: 'Fitness / Transformação',
-        icon: SplitSquareHorizontal,
-        bgGradient: 'from-pink-500 to-fuchsia-600',
-        ctr: '5.1%',
-        roas: '7.2x',
-        views: '4.8M',
-        promptInstruction: `Você é focado em Choque Visual Rápido para TikTokers com Déficit de Atenção. Tudo tem que ser dividido no meio. Formato 30s.
-
-### [HOOK HIPNÓTICO SPLIT-SCREEN - 0-5s]
-(Visual: Tela rachada no meio. Esquerda: Erro/Dor (Tristeza vermelha / Barriga / Pele ruim). Direita: Acerto/Prazer (Herói / Sucesso / Verde brillante).)
-🎙️ Fala (Dinâmico): "Porque todo mundo tá sofrendo de [DOR] enquanto essa galera de cá tá chegando longe?"
-
-### [CARIMBANDO O ERRO - 5-15s]
-(Visual: A Esquerda domina a tela, ganha um grande 'X' com som de campainha de erro)
-🎙️ Fala: "A culpa não é sua, fazer 'X' e 'Y' tá te matando de frustração, porque te tira energia e não gera [RESULTADO]."
-
-### [A PREMIAÇÃO - 15-25s]
-(Visual: A Direita rompe pra tela toda esfregando o Antes e Depois mágico em apenas um flash lindo, junto com a logomarca de [PRODUTO])
-🎙️ Fala: "Os prós descobriram o [NOME DO PRODUTO], que com esse mecanismo acelera todos os resultados pro topo."
-
-### [CTA FLASH - 25s+]
-(Visual: Seta vermelha apontando freneticamente pra Action Area)
-🎙️ Fala: "Pare de atrasar seu progresso. Clica aqui!"`
-    },
-    {
-        title: 'Screencast / Tool Highlight',
-        niche: 'SaaS / B2B / Ferramentas',
-        icon: MonitorPlay,
-        bgGradient: 'from-slate-600 to-gray-800',
-        ctr: '2.5%',
-        roas: '5.5x',
-        views: '1.1M',
-        promptInstruction: `Foco total em B2B e produtividade. Apresente o problema complexo e como o seu App resolve com um 'Clique'. Formato Rápido e Limpo de 45s.
-
-### [O CAOS CORPORATIVO (HOOK) - 0-5s]
-(Visual: Post It na cara, dezenas de abas do Chrome abertas piscando, cara de burnout no computador)
-🎙️ Fala (Rápido): "Se seu time ainda faz [MÉTODO ANTIGO] na mão pra conseguir [RESULTADOS], sua empresa parou no tempo."
-
-### [A PÍLULA MÁGICA - 5-20s]
-(Visual: Mostra a UI limpa e o Dark Mode poderoso do [NOME DO PRODUTO])
-🎙️ Fala: "Demita a burocracia. Acabei de jogar todo esse problema na conta do [NOME DO PRODUTO]."
-
-### [TUTORIAL EM 3 PONTOS MÁGICOS - 20-35s]
-(Visual: Mouse clicando rapidamente em Step 1, Step 2, acompanhado por SFX sonoros potentes e satisfatórios e gráficos subindo na tela)
-🎙️ Fala: "Importa os dados. Clica na IA do Painel. E pumba: Automação completa sem usar um desenvolvedor."
-
-### [CTA DIRETÃO - 35s+]
-(Visual: Fundo Limpo e o botão amarelo de CTA piscando no centro da tela)
-🎙️ Fala: "Aumente as margens hoje com nosso trial grátis. Saiba Mais."`
-    },
-    {
-        title: 'A Lista Negativa',
-        niche: 'Consultoria / Cursos',
-        icon: AlertTriangle,
-        bgGradient: 'from-red-500 to-pink-600',
-        ctr: '4.5%',
-        roas: '3.8x',
-        views: '2.2M',
-        promptInstruction: `Essa técnica é controversa mas retém a geração Z. Fale sobre '3 Coisas que estão acabando com a Vida/Resultados do Cliente' listando os erros, e revele o Produto como salvação.
-
-### [O GANCHO DA NEGAÇÃO - 0-5s]
-(Visual: Alguém segurando um celular na frente de um espelho ou fazendo texto nativo do Reels pontuando um número com a mão: 3 dedos)
-🎙️ Fala: "3 coisas que você tá fazendo de idiota e por isso continua [DOR DO CLIENTE]."
-
-### [OS 2 PRIMEIROS ERROS ÓBVIOS - 5-20s]
-(Visual: Edição Fast-Paced com textos fortes saltando no centro do vídeo para cada erro. Efeito sonoro nas transições.)
-🎙️ Fala: "O primeiro é o que te dizem desde criancinha pra fazer e só enriquece seu chefe. O segundo é achar que tem que passar fome pra emagrecer."
-
-### [O ERRO FATAL + O SVO DO PRODUTO - 20-40s]
-(Visual: Foco dramático na cara. Corta o som da música de fundo para algo mais seco.)
-🎙️ Fala: "Mas o erro número 3 é fatal. Você tentar fazer isso enquanto não usa a barreira de proteção de um [MECANISMO NOVO]." Puxe o [NOME DO PRODUTO] como antídoto do Erro 3, mostrando seus diferenciais.
-
-### [A CHAMADA AGRESSIVA - 40s+]
-(Visual: Transição pesada para uma arte final com Logo, Oferta e a Seta)
-🎙️ Fala: "Se quer consertar a burrada que você aprendeu ano passado. Eu tenho uma oferta. Clica embaixo e muda a chavinha agora."`
-    },
-    {
-        title: 'Entrevista de Rua',
-        niche: 'Viral / Apps / E-Commerce',
-        icon: Mic,
-        bgGradient: 'from-yellow-400 to-orange-500',
-        ctr: '6.2%',
-        roas: '5.1x',
-        views: '5.4M',
-        promptInstruction: `O estilo Pop Vox. Entreviste alguém com um microfone vagabundo no meio de um lugar movimentado, faça um Quiz sobre o produto, faça os clientes descobrirem sozinhos a magia da Solução na rua. Formato Curto!
-
-### [O ATAQUE NA RUA (O HOOK) - 0-4s]
-(Visual: Entrevistador correndo atrás de um transeunte com um microfone de lapela na mão. Câmera tremida, dinâmica crua e autêntica)
-🎙️ Fala (Entrevistador): "Amigo! Quantas horas da sua vida você já perdeu tentando [DOR DO CLIENTE]? Dou cem reais se acertar!"
-
-### [A CONFISSÃO E A CAIXINHA - 4-15s]
-(Visual: A pessoa entrevistada dá uma resposta absurdamente alta e sofre, enquanto o apresentador saca o produto do bolso.)
-🎙️ Fala (Entrevistada): "Putz, acho que já perdi metade da minha paciência só essa semana com isso!" 
-🎙️ Fala (Entrevistador): "E se eu disser que o [NOME DO PRODUTO] limpa essa sua bagunça em dois minutos cravados com tecnologia de ponta?"
-
-### [O TESTE AO VIVO - 15-30s]
-(Visual: Entrega o produto ou mostre a tela do app pra pessoa na rua e grave o choque autêntico no rosto dela ao ver a solução [RESULTADOS])
-🎙️ Fala (Entrevistada berrando e sorrindo): "Mentira que isso fez tudo automático?! Mano do céu!"
-
-### [O CTA FINAL NO MEIO DA RUA - 30s+]
-(Visual: Apresentador encara câmera super perto de forma debochada olhando os papéis ou a mercadoria caírem)
-🎙️ Fala: "Você viu. Agora é sua vez de [RESULTADO MÁGICO]. O cupom secreto tá aí embaixo. Corre."`
-    }
-];
 
 export default function GoldLibrary() {
     const navigate = useNavigate();
@@ -268,25 +55,40 @@ export default function GoldLibrary() {
     const [newCreative, setNewCreative] = useState<Partial<Creative>>({
         niche: 'Emagrecimento',
         format: 'Reels',
-        style: STYLES[0],
+        style: '',
     });
     const [videoFile, setVideoFile] = useState<File | null>(null);
 
-    // Dynamic Niches state
-    const [niches, setNiches] = useState<Niche[]>([]);
-    const [isNicheModalOpen, setIsNicheModalOpen] = useState(false);
-    const [newNicheName, setNewNicheName] = useState('');
-    const [isSavingNiche, setIsSavingNiche] = useState(false);
+    // Dynamic Categories state
+    const [niches, setNiches] = useState<Category[]>([]);
+    const [styles, setStyles] = useState<Category[]>([]);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [categoryModalTab, setCategoryModalTab] = useState<'niches' | 'styles'>('niches');
+
+    // Form fields for Categories
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [isSavingCategory, setIsSavingCategory] = useState(false);
 
     // Video Player state
     const [playingVideo, setPlayingVideo] = useState<Creative | null>(null);
+    const touchStartY = useRef<number | null>(null);
+    const isDragging = useRef<boolean>(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     // DB state
     const [creatives, setCreatives] = useState<Creative[]>([]);
+    const [models, setModels] = useState<Model[]>([]);
+
+    // Model Example state
+    const [playingModelVideo, setPlayingModelVideo] = useState<{ title: string; url: string } | null>(null);
+    const [isUploadingModelVideo, setIsUploadingModelVideo] = useState<string | null>(null);
 
     useEffect(() => {
         fetchCreatives();
         fetchNiches();
+        fetchStyles();
+        fetchModels();
     }, []);
 
     const fetchCreatives = async () => {
@@ -306,6 +108,21 @@ export default function GoldLibrary() {
         setIsLoading(false);
     };
 
+    const fetchStyles = async () => {
+        if (!user) return;
+        const { data, error } = await supabase
+            .from('styles')
+            .select('*')
+            .or(`user_id.eq.${user.id},user_id.is.null`)
+            .order('name', { ascending: true });
+
+        if (!error && data) {
+            setStyles(data);
+        } else {
+            setStyles([]);
+        }
+    };
+
     const fetchNiches = async () => {
         if (!user) return;
         const { data, error } = await supabase
@@ -321,44 +138,82 @@ export default function GoldLibrary() {
         }
     };
 
-    const handleAddNiche = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newNicheName.trim()) return;
-        setIsSavingNiche(true);
+    const fetchModels = async () => {
+        const { data, error } = await supabase
+            .from('gold_models')
+            .select('*')
+            .order('created_at', { ascending: true });
 
-        try {
-            const { data, error } = await supabase
-                .from('niches')
-                .insert([{ name: newNicheName.trim(), user_id: user?.id }])
-                .select()
-                .single();
-
-            if (error) throw error;
-            if (data) {
-                setNiches([...niches, data].sort((a, b) => a.name.localeCompare(b.name)));
-                setNewNicheName('');
-            }
-        } catch (error: any) {
-            alert('Erro ao salvar Nicho. Ele já pode existir.');
-            console.error(error);
-        } finally {
-            setIsSavingNiche(false);
+        if (!error && data) {
+            setModels(data);
+        } else {
+            console.error('Erro ao buscar modelos:', error);
         }
     };
 
-    const handleDeleteNiche = async (id: string) => {
-        if (!window.confirm('Certeza que deseja deletar esse Nicho? Ele vai sumir dos filtros.')) return;
+    const handleAddCategory = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newCategoryName.trim()) return;
+        setIsSavingCategory(true);
 
-        const { error } = await supabase.from('niches').delete().eq('id', id);
+        const table = categoryModalTab === 'niches' ? 'niches' : 'styles';
+
+        try {
+            if (editingCategory) {
+                // Edit
+                const { error } = await supabase
+                    .from(table)
+                    .update({ name: newCategoryName.trim() })
+                    .eq('id', editingCategory.id);
+
+                if (error) throw error;
+
+                if (categoryModalTab === 'niches') {
+                    setNiches(niches.map(n => n.id === editingCategory.id ? { ...n, name: newCategoryName.trim() } : n).sort((a, b) => a.name.localeCompare(b.name)));
+                    if (filterNiche === editingCategory.name) setFilterNiche(newCategoryName.trim());
+                } else {
+                    setStyles(styles.map(s => s.id === editingCategory.id ? { ...s, name: newCategoryName.trim() } : s).sort((a, b) => a.name.localeCompare(b.name)));
+                }
+                setEditingCategory(null);
+            } else {
+                // Add
+                const { data, error } = await supabase
+                    .from(table)
+                    .insert([{ name: newCategoryName.trim(), user_id: user?.id }])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+                if (data) {
+                    if (categoryModalTab === 'niches') setNiches([...niches, data].sort((a, b) => a.name.localeCompare(b.name)));
+                    else setStyles([...styles, data].sort((a, b) => a.name.localeCompare(b.name)));
+                }
+            }
+            setNewCategoryName('');
+        } catch (error: any) {
+            alert(`Erro ao salvar ${categoryModalTab === 'niches' ? 'Nicho' : 'Estilo'}. Pode já existir.`);
+            console.error(error);
+        } finally {
+            setIsSavingCategory(false);
+        }
+    };
+
+    const handleDeleteCategory = async (id: string, name: string) => {
+        const typeName = categoryModalTab === 'niches' ? 'Nicho' : 'Estilo';
+        if (!window.confirm(`Certeza que deseja deletar esse ${typeName}?'`)) return;
+
+        const table = categoryModalTab === 'niches' ? 'niches' : 'styles';
+        const { error } = await supabase.from(table).delete().eq('id', id);
+
         if (!error) {
-            setNiches(niches.filter(n => n.id !== id));
-            // Opcional: Se o filter estava nesse nicho, limpar.
-            const deletedNiche = niches.find(n => n.id === id);
-            if (deletedNiche && filterNiche === deletedNiche.name) {
-                setFilterNiche('Todos');
+            if (categoryModalTab === 'niches') {
+                setNiches(niches.filter(n => n.id !== id));
+                if (filterNiche === name) setFilterNiche('Todos');
+            } else {
+                setStyles(styles.filter(s => s.id !== id));
             }
         } else {
-            alert('Erro ao apagar Nicho.');
+            alert(`Erro ao apagar ${typeName}.`);
         }
     };
 
@@ -463,7 +318,7 @@ export default function GoldLibrary() {
                     title: newCreative.title,
                     niche: newCreative.niche || 'Emagrecimento',
                     format: newCreative.format || 'Reels',
-                    style: newCreative.style || STYLES[0],
+                    style: newCreative.style || (styles[0]?.name || ''),
                     url: finalVideoUrl,
                     thumbnail_url: finalThumbnailUrl,
                     user_id: user?.id
@@ -474,7 +329,7 @@ export default function GoldLibrary() {
             if (!error && data) {
                 setCreatives([data, ...creatives]);
                 setIsAddModalOpen(false);
-                setNewCreative({ niche: niches[0]?.name || 'Emagrecimento', format: 'Reels', style: STYLES[0] });
+                setNewCreative({ niche: niches[0]?.name || 'Emagrecimento', format: 'Reels', style: (styles[0]?.name || '') });
                 setVideoFile(null);
                 // Navigate into the folder of the newly added video
                 if (data.style && viewMode === 'style') setSelectedStyle(data.style);
@@ -509,6 +364,43 @@ export default function GoldLibrary() {
         }
     };
 
+    const handleUploadModelExample = async (modelTitle: string, file: File) => {
+        if (!isAdmin) return;
+        setIsUploadingModelVideo(modelTitle);
+
+        try {
+            const timestamp = Date.now();
+            const ext = file.name.split('.').pop() || 'mp4';
+            const videoPath = `model_examples/${modelTitle.replace(/\s+/g, '_').toLowerCase()}_${timestamp}.${ext}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('gold_library_videos')
+                .upload(videoPath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: publicUrlData } = supabase.storage
+                .from('gold_library_videos')
+                .getPublicUrl(videoPath);
+
+            // Agora persistimos no banco
+            const { error: updateError } = await supabase
+                .from('gold_models')
+                .update({ example_video_url: publicUrlData.publicUrl })
+                .eq('title', modelTitle);
+
+            if (updateError) throw updateError;
+
+            fetchModels();
+            alert('Exemplo de modelo atualizado com sucesso!');
+
+        } catch (error: any) {
+            alert('Erro no upload do exemplo: ' + error.message);
+        } finally {
+            setIsUploadingModelVideo(null);
+        }
+    };
+
     const handleSendToClone = (creative: Creative) => {
         setPlayingVideo(null);
         navigate('/analisador', { state: { sourceVideoUrl: creative.url } });
@@ -517,7 +409,7 @@ export default function GoldLibrary() {
     const getEmbedUrl = (url: string) => {
         if (!url) return url;
         if (url.includes('drive.google.com/file/d/')) {
-            const driveIdMatch = url.match(/\/d\/(.+?)\//);
+            const driveIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
             if (driveIdMatch && driveIdMatch[1]) {
                 return `https://drive.google.com/file/d/${driveIdMatch[1]}/preview`;
             }
@@ -549,12 +441,91 @@ export default function GoldLibrary() {
         return matchesSearch && matchesNiche && matchesStyle && matchesSelectedNiche;
     });
 
+    // ─── Swipe Cross-Folder Logic ────────────────────────────────────────────────
+    const handleSwipe = (direction: 1 | -1) => {
+        if (!playingVideo) return;
+
+        const currentIndex = filteredCreatives.findIndex(c => c.id === playingVideo.id);
+
+        if (direction === 1) {
+            if (currentIndex >= 0 && currentIndex < filteredCreatives.length - 1) {
+                setPlayingVideo(filteredCreatives[currentIndex + 1]);
+                return;
+            }
+        } else if (direction === -1) {
+            if (currentIndex > 0) {
+                setPlayingVideo(filteredCreatives[currentIndex - 1]);
+                return;
+            }
+        }
+
+        // Transition to next folder if at boundary
+        if (viewMode === 'style' && selectedStyle) {
+            const currentFolderIndex = styles.findIndex(s => s.name === selectedStyle);
+            if (currentFolderIndex === -1) return;
+
+            let nextFolderIndex = currentFolderIndex + direction;
+
+            while (nextFolderIndex >= 0 && nextFolderIndex < styles.length) {
+                const nextStyleName = styles[nextFolderIndex].name;
+
+                const nextFolderCreatives = creatives.filter((c) => {
+                    const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesNiche = filterNiche === 'Todos' || c.niche === filterNiche;
+                    const matchesStyle = c.style === nextStyleName;
+                    return matchesSearch && matchesNiche && matchesStyle;
+                });
+
+                if (nextFolderCreatives.length > 0) {
+                    setSelectedStyle(nextStyleName);
+                    if (direction === 1) {
+                        setPlayingVideo(nextFolderCreatives[0]);
+                    } else {
+                        setPlayingVideo(nextFolderCreatives[nextFolderCreatives.length - 1]);
+                    }
+                    return;
+                }
+                nextFolderIndex += direction;
+            }
+        } else if (viewMode === 'niche' && selectedNiche) {
+            const currentFolderIndex = niches.findIndex(n => n.name === selectedNiche);
+            if (currentFolderIndex === -1) return;
+
+            let nextFolderIndex = currentFolderIndex + direction;
+
+            while (nextFolderIndex >= 0 && nextFolderIndex < niches.length) {
+                const nextNicheName = niches[nextFolderIndex].name;
+                if (nextNicheName === 'Estilos de Gravação') {
+                    nextFolderIndex += direction;
+                    continue;
+                }
+
+                const nextFolderCreatives = creatives.filter((c) => {
+                    const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesNiche = c.niche === nextNicheName;
+                    return matchesSearch && matchesNiche;
+                });
+
+                if (nextFolderCreatives.length > 0) {
+                    setSelectedNiche(nextNicheName);
+                    if (direction === 1) {
+                        setPlayingVideo(nextFolderCreatives[0]);
+                    } else {
+                        setPlayingVideo(nextFolderCreatives[nextFolderCreatives.length - 1]);
+                    }
+                    return;
+                }
+                nextFolderIndex += direction;
+            }
+        }
+    };
+
     // ─── Folder view helpers ─────────────────────────────────────────────────────
     const openAddModal = (style?: string, niche?: string) => {
         setNewCreative({
             niche: niche || (filterNiche !== 'Todos' ? filterNiche : niches[0]?.name || 'Emagrecimento'),
             format: 'Reels',
-            style: style ? style : (niche ? 'PROFISSÕES' : STYLES[0]),
+            style: style ? style : (styles[0]?.name || ''),
         });
         setVideoFile(null);
         setIsAddModalOpen(true);
@@ -668,9 +639,9 @@ export default function GoldLibrary() {
                                 </select>
                                 {isAdmin && (
                                     <button
-                                        onClick={() => setIsNicheModalOpen(true)}
+                                        onClick={() => { setCategoryModalTab('niches'); setIsCategoryModalOpen(true); }}
                                         className="ml-2 p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                        title="Gerenciar Nichos"
+                                        title="Gerenciar Categorias"
                                     >
                                         <Settings className="w-4 h-4" />
                                     </button>
@@ -688,12 +659,13 @@ export default function GoldLibrary() {
                         /* ── FOLDER VIEW ─────────────────────────────────────────────── */
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                             {viewMode === 'style' ? (
-                                STYLES.map((style) => {
+                                styles.map((styleObj) => {
+                                    const style = styleObj.name;
                                     const styleVideos = creatives.filter((c) => c.style === style);
                                     const previewThumb = styleVideos.find((c) => c.thumbnail_url)?.thumbnail_url;
                                     return (
                                         <button
-                                            key={style}
+                                            key={styleObj.id}
                                             onClick={() => setSelectedStyle(style)}
                                             className="group relative flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden text-left hover:shadow-lg hover:border-yellow-300 dark:hover:border-yellow-600 transition-all"
                                         >
@@ -730,6 +702,7 @@ export default function GoldLibrary() {
                                 })
                             ) : (
                                 niches.map((niche) => {
+                                    if (niche.name === 'Estilos de Gravação') return null; // Prevent showing styles folder in niche view
                                     const nicheVideos = creatives.filter((c) => c.niche === niche.name);
                                     const previewThumb = nicheVideos.find((c) => c.thumbnail_url)?.thumbnail_url;
                                     return (
@@ -787,53 +760,13 @@ export default function GoldLibrary() {
                                 </div>
                             ) : (
                                 filteredCreatives.map((creative) => (
-                                    <div key={creative.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg transition-all group overflow-hidden flex flex-col h-full min-h-[300px]">
-                                        {/* Header Tags */}
-                                        <div className="p-4 pb-2 z-10 flex justify-between">
-                                            <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 text-[10px] font-bold uppercase rounded-md tracking-wider">
-                                                {creative.niche} • {creative.format}
-                                            </span>
-                                            {isAdmin && (
-                                                <button
-                                                    onClick={() => handleDelete(creative.id, creative.url, creative.thumbnail_url)}
-                                                    className="p-1.5 md:opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Thumbnail */}
-                                        <div
-                                            className="relative aspect-9/16 w-full cursor-pointer bg-gray-100 dark:bg-gray-900 group/thumb overflow-hidden"
-                                            onClick={() => setPlayingVideo(creative)}
-                                        >
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <Video className="w-12 h-12 text-gray-300 dark:text-gray-600" />
-                                            </div>
-                                            {creative.thumbnail_url && (
-                                                <img
-                                                    src={creative.thumbnail_url}
-                                                    alt="Thumbnail"
-                                                    className="absolute inset-0 w-full h-full object-cover z-10"
-                                                    referrerPolicy="no-referrer"
-                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                />
-                                            )}
-                                            <div className="absolute inset-0 bg-black/40 md:opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center z-20">
-                                                <div className="p-4 rounded-full bg-white/20 backdrop-blur-md">
-                                                    <Play className="w-8 h-8 text-white fill-current translate-x-0.5" />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Footer */}
-                                        <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800">
-                                            <h3 className="font-bold text-gray-900 dark:text-gray-100 line-clamp-1 text-sm" title={creative.title}>
-                                                {creative.title}
-                                            </h3>
-                                        </div>
-                                    </div>
+                                    <VideoCard
+                                        key={creative.id}
+                                        creative={creative}
+                                        isAdmin={isAdmin}
+                                        onDelete={handleDelete}
+                                        onPlay={setPlayingVideo}
+                                    />
                                 ))
                             )}
                         </div>
@@ -842,9 +775,21 @@ export default function GoldLibrary() {
             ) : (
                 /* ── MODELS VIEW (Ferramentas e Fórmulas) ─────────────────────────────────────────────── */
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4">
-                    {MODELS_DATA.map((model, index) => (
-                        <AdCard key={index} {...model} />
+                    {models.map((model) => (
+                        <ModelCard
+                            key={model.id}
+                            model={model}
+                            isAdmin={isAdmin}
+                            isUploading={isUploadingModelVideo === model.title}
+                            onPlayExample={(title, url) => setPlayingModelVideo({ title, url })}
+                            onUploadExample={handleUploadModelExample}
+                        />
                     ))}
+                    {models.length === 0 && (
+                        <div className="col-span-full py-20 text-center">
+                            <p className="text-gray-500">Nenhuma fórmula carregada do banco de dados ainda.</p>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -874,28 +819,32 @@ export default function GoldLibrary() {
                             </div>
 
                             {/* Estilo (Pasta) */}
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">📁 Pasta / Estilos de Gravação / Profissões</label>
-                                <select
-                                    className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none font-medium"
-                                    value={newCreative.style}
-                                    onChange={(e) => setNewCreative({ ...newCreative, style: e.target.value })}
-                                >
-                                    {STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
+                            {viewMode !== 'niche' && (
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Nicho</label>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">📁 Pasta / Estilos de Gravação</label>
                                     <select
-                                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none"
-                                        value={newCreative.niche}
-                                        onChange={(e) => setNewCreative({ ...newCreative, niche: e.target.value })}
+                                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none font-medium"
+                                        value={newCreative.style}
+                                        onChange={(e) => setNewCreative({ ...newCreative, style: e.target.value })}
                                     >
-                                        {niches.map((n) => <option key={n.id} value={n.name}>{n.name}</option>)}
+                                        {styles.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                                     </select>
                                 </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                {viewMode !== 'style' && (
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Nicho</label>
+                                        <select
+                                            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none"
+                                            value={newCreative.niche}
+                                            onChange={(e) => setNewCreative({ ...newCreative, niche: e.target.value })}
+                                        >
+                                            {niches.map((n) => <option key={n.id} value={n.name}>{n.name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Formato</label>
                                     <select
@@ -956,27 +905,58 @@ export default function GoldLibrary() {
             {/* ── Modal: Player de Vídeo ───────────────────────────────────────── */}
             {playingVideo && (
                 <div
-                    className="fixed inset-0 bg-black/95 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-4 pt-8 md:pt-16 pb-8 z-60 animate-in fade-in zoom-in-95 duration-200"
-                    onClick={() => setPlayingVideo(null)}
+                    className="fixed inset-0 bg-black align-middle flex flex-col items-center justify-center overflow-hidden z-60 animate-in fade-in zoom-in-95 duration-200 touch-none"
+                    onClick={() => {
+                        if (isDragging.current) return;
+                        setPlayingVideo(null);
+                    }}
+                    onPointerDown={(e) => {
+                        touchStartY.current = e.clientY;
+                        isDragging.current = false;
+                    }}
+                    onPointerUp={(e) => {
+                        if (touchStartY.current === null) return;
+                        const touchEndY = e.clientY;
+                        const distance = touchStartY.current - touchEndY;
+
+                        if (Math.abs(distance) > 5) {
+                            isDragging.current = true;
+                        }
+
+                        if (distance > 50) {
+                            handleSwipe(1);
+                        } else if (distance < -50) {
+                            handleSwipe(-1);
+                        }
+                        touchStartY.current = null;
+
+                        setTimeout(() => {
+                            isDragging.current = false;
+                        }, 50);
+                    }}
                 >
                     <button
-                        onClick={() => setPlayingVideo(null)}
-                        className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-3 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all z-10"
+                        onClick={(e) => { e.stopPropagation(); setPlayingVideo(null); }}
+                        className="absolute top-6 right-4 md:right-8 p-3 bg-black/40 text-white rounded-full transition-all z-20 backdrop-blur-md"
                     >
-                        <X className="w-8 h-8" />
+                        <X className="w-6 h-6" />
                     </button>
 
                     <div
-                        className="w-full max-w-lg flex flex-col items-center text-center mt-4 md:mt-0"
+                        className="w-full h-full md:w-auto md:h-auto md:max-w-lg flex flex-col items-center text-center relative"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <span className="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold uppercase rounded-md mb-3 md:mb-4 tracking-widest shadow-lg">
-                            {playingVideo.style} • {playingVideo.niche}
-                        </span>
+                        {/* Title pill floating Top for mobile, or static for desktop */}
+                        <div className="absolute top-8 left-0 right-0 z-10 flex justify-center pointer-events-none px-4">
+                            <span className="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold uppercase rounded-md tracking-widest shadow-lg">
+                                {playingVideo.style} • {playingVideo.niche}
+                            </span>
+                        </div>
 
-                        <div className="w-full max-w-[280px] sm:max-w-[340px] aspect-9/16 max-h-[65vh] xl:max-h-[75vh] bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10 ring-4 ring-white/5 relative flex items-center justify-center">
+                        {/* Video Container */}
+                        <div className="w-full h-dvh md:w-[340px] md:h-[65vh] xl:md:h-[75vh] md:rounded-3xl bg-black overflow-hidden shadow-2xl md:border border-white/10 md:ring-4 ring-white/5 relative flex items-center justify-center group flex-col">
                             {isDriveFolder(playingVideo.url) ? (
-                                <div className="flex flex-col items-center gap-4 p-8 text-center text-white">
+                                <div className="flex flex-col items-center gap-4 p-8 text-center text-white cursor-default">
                                     <div className="p-6 bg-yellow-500/20 rounded-full">
                                         <FolderOpen className="w-16 h-16 text-yellow-500" />
                                     </div>
@@ -994,89 +974,141 @@ export default function GoldLibrary() {
                             ) : playingVideo.url.includes('vimeo') || playingVideo.url.includes('youtube') || playingVideo.url.includes('drive.google.com') ? (
                                 <iframe
                                     src={playingVideo.url.includes('drive.google.com') ? getEmbedUrl(playingVideo.url) : `${getEmbedUrl(playingVideo.url)}${playingVideo.url.includes('?') ? '&' : '?'}autoplay=1`}
-                                    className="w-full h-full border-none"
+                                    className="w-full h-dvh md:h-full border-none"
                                     allow="autoplay; fullscreen"
                                 />
                             ) : (
                                 <video
-                                    src={playingVideo.url}
-                                    controls
+                                    ref={videoRef}
+                                    src={`${playingVideo.url}${playingVideo.url.includes('?') ? '&' : '?'}ngsw-bypass=true`}
+                                    crossOrigin="anonymous"
                                     autoPlay
                                     playsInline
-                                    className="w-full h-full object-contain bg-black"
+                                    loop
+                                    onClick={(e) => {
+                                        if (isDragging.current) {
+                                            e.stopPropagation();
+                                            return;
+                                        }
+                                        if (videoRef.current) {
+                                            if (videoRef.current.paused) videoRef.current.play();
+                                            else videoRef.current.pause();
+                                        }
+                                    }}
+                                    className="w-full h-full object-contain md:object-contain bg-black cursor-pointer"
                                     controlsList="nodownload"
                                 />
                             )}
-                        </div>
 
-                        <h3 className="mt-4 text-white font-bold text-base px-4">{playingVideo.title}</h3>
+                            {/* Floating Action Buttons Area */}
+                            <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/90 via-black/50 to-transparent pt-20 pb-8 px-4 flex flex-col justify-end items-center pointer-events-none">
+                                <h3 className="text-white font-bold text-base md:text-lg mb-4 text-center drop-shadow-md">
+                                    {playingVideo.title}
+                                </h3>
 
-                        <div className="flex flex-row gap-3 mt-6 w-full max-w-[340px]">
-                            <a
-                                href={playingVideo.url}
-                                download={!isDriveFolder(playingVideo.url)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex-1 flex justify-center items-center gap-2 px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl transition-all"
-                            >
-                                <Download className="w-5 h-5" /> {isDriveFolder(playingVideo.url) ? 'Abrir Link' : 'Baixar MP4'}
-                            </a>
-                            <button
-                                onClick={() => handleSendToClone(playingVideo)}
-                                className="flex-1 flex justify-center items-center gap-2 px-5 py-3.5 bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold rounded-xl transition-all shadow-lg"
-                            >
-                                <Wand2 className="w-5 h-5" /> Clonar na IA
-                            </button>
+                                <div className="flex flex-row gap-3 w-full max-w-[340px] pointer-events-auto">
+                                    <a
+                                        href={playingVideo.url}
+                                        download={!isDriveFolder(playingVideo.url)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex-1 flex justify-center items-center gap-2 px-5 py-3.5 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-medium rounded-xl transition-all"
+                                        onClick={(e) => { e.stopPropagation(); }}
+                                    >
+                                        <Download className="w-5 h-5" /> {isDriveFolder(playingVideo.url) ? 'Abrir Link' : 'Baixar MP4'}
+                                    </a>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleSendToClone(playingVideo); }}
+                                        className="flex-1 flex justify-center items-center gap-2 px-5 py-3.5 bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold rounded-xl transition-all shadow-lg"
+                                    >
+                                        <Wand2 className="w-5 h-5" /> Clonar na IA
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
-            {/* ── Modal: Gerenciar Nichos ──────────────────────────────────────── */}
-            {isNicheModalOpen && isAdmin && (
+            {/* ── Modal: Gerenciar Categorias ──────────────────────────────────────── */}
+            {isCategoryModalOpen && isAdmin && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-70">
                     <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900">
-                            <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                                <Settings className="w-5 h-5 text-yellow-500" /> Gerenciar Nichos
-                            </h2>
-                            <button onClick={() => setIsNicheModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
+                        <div className="flex flex-col border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900">
+                            <div className="flex justify-between items-center p-6 pb-2">
+                                <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                                    <Settings className="w-5 h-5 text-yellow-500" /> Gerenciar Categorias
+                                </h2>
+                                <button onClick={() => { setIsCategoryModalOpen(false); setEditingCategory(null); setNewCategoryName(''); }} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="flex gap-4 px-6 pt-2 border-b border-gray-200 dark:border-gray-700">
+                                <button
+                                    onClick={() => { setCategoryModalTab('niches'); setEditingCategory(null); setNewCategoryName(''); }}
+                                    className={`py-2 px-1 border-b-2 transition-colors ${categoryModalTab === 'niches' ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                >
+                                    Nichos
+                                </button>
+                                <button
+                                    onClick={() => { setCategoryModalTab('styles'); setEditingCategory(null); setNewCategoryName(''); }}
+                                    className={`py-2 px-1 border-b-2 transition-colors ${categoryModalTab === 'styles' ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                >
+                                    Estilos de Vídeo
+                                </button>
+                            </div>
                         </div>
 
                         <div className="p-6">
-                            {/* Inserir novo Nicho */}
-                            <form onSubmit={handleAddNiche} className="flex gap-2 mb-6">
+                            {/* Inserir/Editar nova Categoria */}
+                            <form onSubmit={handleAddCategory} className="flex gap-2 mb-6">
                                 <input
                                     type="text"
-                                    placeholder="Novo nicho..."
+                                    placeholder={editingCategory ? `Renomear...` : `Novo ${categoryModalTab === 'niches' ? 'nicho' : 'estilo'}...`}
                                     className="flex-1 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-yellow-500 outline-none"
-                                    value={newNicheName}
-                                    onChange={e => setNewNicheName(e.target.value)}
-                                    disabled={isSavingNiche}
+                                    value={newCategoryName}
+                                    onChange={e => setNewCategoryName(e.target.value)}
+                                    disabled={isSavingCategory}
                                 />
+                                {editingCategory && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setEditingCategory(null); setNewCategoryName(''); }}
+                                        className="px-3 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                )}
                                 <button
                                     type="submit"
-                                    disabled={!newNicheName.trim() || isSavingNiche}
+                                    disabled={!newCategoryName.trim() || isSavingCategory}
                                     className="px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-1"
                                 >
-                                    <Plus className="w-4 h-4" /> Adicionar
+                                    <Plus className="w-4 h-4" /> {editingCategory ? 'Salvar' : 'Adicionar'}
                                 </button>
                             </form>
 
-                            {/* Lista de Nichos */}
+                            {/* Lista */}
                             <div className="max-h-[50vh] overflow-y-auto space-y-2 pr-2">
-                                {niches.length === 0 && <p className="text-gray-500 text-center py-4">Nenhum nicho salvo ainda.</p>}
-                                {niches.map(niche => (
-                                    <div key={niche.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">{niche.name}</span>
-                                        <button
-                                            onClick={() => handleDeleteNiche(niche.id)}
-                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                                            title="Excluir nicho"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                {(categoryModalTab === 'niches' ? niches : styles).length === 0 && <p className="text-gray-500 text-center py-4">Nenhum salvo ainda.</p>}
+                                {(categoryModalTab === 'niches' ? niches : styles).map(cat => (
+                                    <div key={cat.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">{cat.name}</span>
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => { setEditingCategory(cat); setNewCategoryName(cat.name); }}
+                                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                title="Editar"
+                                            >
+                                                <Settings className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                                title="Excluir"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -1084,6 +1116,44 @@ export default function GoldLibrary() {
                     </div>
                 </div>
             )}
+
+            {/* ── Model Video Example Player Modal ────────────────────────────────── */}
+            {playingModelVideo && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+                    <div className="w-full max-w-lg bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border border-gray-800">
+                        <div className="p-6 flex justify-between items-center border-b border-gray-800 bg-gray-900/50">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                                <Video className="w-5 h-5 text-yellow-500" />
+                                Exemplo: {playingModelVideo.title}
+                            </h3>
+                            <button
+                                onClick={() => setPlayingModelVideo(null)}
+                                className="p-2 hover:bg-gray-800 rounded-full text-gray-400 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="aspect-9/16 bg-black relative flex items-center justify-center">
+                            <video
+                                src={playingModelVideo.url}
+                                className="h-full w-auto max-w-full"
+                                controls
+                                autoPlay
+                                playsInline
+                            />
+                        </div>
+                        <div className="p-6 bg-gray-900/80">
+                            <button
+                                onClick={() => setPlayingModelVideo(null)}
+                                className="w-full py-4 bg-white text-black font-black text-lg rounded-2xl hover:bg-gray-100 transition-all"
+                            >
+                                Entendi a Estrutura
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+
     );
 }

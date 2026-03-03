@@ -1,19 +1,54 @@
 import { Play, Eye, MousePointerClick, TrendingUp, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import * as LucideIcons from 'lucide-react';
 
 interface AdCardProps {
     title: string;
     niche: string;
-    icon: React.ElementType;
+    icon: React.ElementType | string;
     bgGradient?: string;
     ctr: string;
     roas: string;
     views: string;
     promptInstruction?: string;
+    videoUrl?: string;
+    thumbnailUrl?: string;
+    children?: React.ReactNode;
 }
 
-export function AdCard({ title, niche, icon: Icon, bgGradient = 'from-indigo-600 to-purple-600', ctr, roas, views, promptInstruction }: AdCardProps) {
+export function AdCard({
+    title,
+    niche,
+    icon: IconProp,
+    bgGradient = 'from-indigo-600 to-purple-600',
+    ctr,
+    roas,
+    views,
+    promptInstruction,
+    videoUrl,
+    thumbnailUrl,
+    children
+}: AdCardProps) {
     const navigate = useNavigate();
+    const [isHovered, setIsHovered] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Resolve Icon if it's a string
+    const Icon = typeof IconProp === 'string'
+        ? (LucideIcons as any)[IconProp] || LucideIcons.HelpCircle
+        : IconProp;
+
+    useEffect(() => {
+        if (videoRef.current) {
+            if (isHovered) {
+                videoRef.current.play().catch(e => console.log("Autoplay blocked or failed", e));
+            } else {
+                videoRef.current.pause();
+                videoRef.current.currentTime = 0;
+            }
+        }
+    }, [isHovered]);
 
     const handleUseTemplate = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -28,15 +63,42 @@ export function AdCard({ title, niche, icon: Icon, bgGradient = 'from-indigo-600
     };
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm hover:shadow-lg transition-all group cursor-pointer flex flex-col h-full">
-            <div className={`relative aspect-video flex items-center justify-center bg-gradient-to-br ${bgGradient}`}>
-                <Icon className="w-16 h-16 text-white/50 group-hover:text-white group-hover:scale-110 transition-all duration-300" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-                    <div className="bg-white/20 backdrop-blur-md p-3 rounded-full mt-2">
-                        <Play className="w-8 h-8 text-white fill-white" />
-                    </div>
+        <div
+            className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm hover:shadow-lg transition-all group cursor-pointer flex flex-col h-full"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            <div className={`relative aspect-video flex items-center justify-center bg-linear-to-br ${bgGradient}`}>
+                {/* Video Preview Layer */}
+                {videoUrl && (
+                    <video
+                        ref={videoRef}
+                        src={videoUrl}
+                        muted
+                        loop
+                        playsInline
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                    />
+                )}
+
+                {/* Thumbnail/Icon Layer */}
+                <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${isHovered && videoUrl ? 'opacity-0' : 'opacity-100'}`}>
+                    {thumbnailUrl ? (
+                        <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
+                    ) : (
+                        <Icon className="w-16 h-16 text-white/50 group-hover:text-white group-hover:scale-110 transition-all duration-300" />
+                    )}
                 </div>
-                <div className="absolute top-3 left-3 bg-black/40 backdrop-blur-md text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded-lg border border-white/10">
+
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                    {!videoUrl && (
+                        <div className="bg-white/20 backdrop-blur-md p-3 rounded-full mt-2">
+                            <Play className="w-8 h-8 text-white fill-white" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="absolute top-3 left-3 bg-black/40 backdrop-blur-md text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded-lg border border-white/10 z-10">
                     {niche}
                 </div>
             </div>
@@ -62,7 +124,7 @@ export function AdCard({ title, niche, icon: Icon, bgGradient = 'from-indigo-600
                     </div>
                 </div>
 
-                {promptInstruction && (
+                {children ? children : promptInstruction && (
                     <div className="mt-auto pt-2">
                         <button
                             onClick={handleUseTemplate}
