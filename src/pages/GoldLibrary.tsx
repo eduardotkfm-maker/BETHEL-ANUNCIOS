@@ -94,11 +94,15 @@ export default function GoldLibrary() {
     const fetchCreatives = async () => {
         if (!user) return;
         setIsLoading(true);
-        const { data, error } = await supabase
-            .from('gold_library')
-            .select('*')
-            .or(`user_id.eq.${user.id},user_id.is.null`)
-            .order('created_at', { ascending: false });
+
+        let query = supabase.from('gold_library').select('*');
+
+        // Se NÃO for admin, filtra apenas os dele ou os públicos
+        if (!isAdmin) {
+            query = query.or(`user_id.eq.${user.id},user_id.is.null`);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (!error && data) {
             setCreatives(data);
@@ -110,11 +114,13 @@ export default function GoldLibrary() {
 
     const fetchStyles = async () => {
         if (!user) return;
-        const { data, error } = await supabase
-            .from('styles')
-            .select('*')
-            .or(`user_id.eq.${user.id},user_id.is.null`)
-            .order('name', { ascending: true });
+        let query = supabase.from('styles').select('*');
+
+        if (!isAdmin) {
+            query = query.or(`user_id.eq.${user.id},user_id.is.null`);
+        }
+
+        const { data, error } = await query.order('name', { ascending: true });
 
         if (!error && data) {
             setStyles(data);
@@ -125,11 +131,13 @@ export default function GoldLibrary() {
 
     const fetchNiches = async () => {
         if (!user) return;
-        const { data, error } = await supabase
-            .from('niches')
-            .select('*')
-            .or(`user_id.eq.${user.id},user_id.is.null`)
-            .order('name', { ascending: true });
+        let query = supabase.from('niches').select('*');
+
+        if (!isAdmin) {
+            query = query.or(`user_id.eq.${user.id},user_id.is.null`);
+        }
+
+        const { data, error } = await query.order('name', { ascending: true });
 
         if (!error && data) {
             setNiches(data);
