@@ -122,8 +122,22 @@ export default function AdAnalyzer() {
                 }
             }
 
-            // Caminho 3: Outros links (YouTube, TikTok, etc.) — ainda sem suporte
-            alert("A extração direta por Link Social ainda requer um backend. Baixe o vídeo manualmente e use a opção 'Upload .MP4'.");
+            // Caminho 3: URLs Diretas (Supabase, S3, etc)
+            if (videoUrl.includes('.mp4') || videoUrl.includes('.webm') || videoUrl.includes('supabase.co/storage')) {
+                try {
+                    const res = await fetch(videoUrl);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const blob = await res.blob();
+                    const file = new File([blob], 'video_ref.mp4', { type: blob.type || 'video/mp4' });
+                    await processVideoFile(file);
+                    return;
+                } catch (directErr) {
+                    console.error('Falha ao baixar vídeo direto:', directErr);
+                }
+            }
+
+            // Caminho 4: Outros links (YouTube, TikTok, etc.) — ainda sem suporte
+            alert("A extração direta de Links Sociais (YT/TikTok) ainda requer um backend profissional. Baixe o vídeo manualmente ou use uma referência da Biblioteca de Ouro.");
             setIsModeling(false);
 
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
