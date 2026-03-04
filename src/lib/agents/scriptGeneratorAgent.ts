@@ -25,7 +25,6 @@ export async function generateScript(request: ScriptGeneratorRequest): Promise<S
         ? `\n[INSTRUÇÃO DE TEMPLATE ESPECÍFICO]: O usuário escolheu o modelo "${request.templateName || 'Customizado'}". \n\n⚠️ INCLUA A SEGUINTE ABORDAGEM NO ROTEIRO:\n\n"""\n${request.templateInstruction}\n"""\n`
         : ``;
 
-    const assistantId = "asst_SM223DZ06vlDXyQ87nKQvyJs";
 
     const funnelDirective = request.funnelStage
         ? `\n[ESTÁGIO DO FUNIL]: Este roteiro deve ser focado para ${request.funnelStage.toUpperCase()} de Funil.\n`
@@ -53,7 +52,7 @@ export async function generateScript(request: ScriptGeneratorRequest): Promise<S
 4. MULTIPLICIDADE: Caso tenha sido pedido mais de um roteiro, separe-os claramente com títulos (Ex: # Roteiro 1, # Roteiro 2).
 `;
 
-    const userMessage = `Por favor, crie ${request.scriptCount || 1} roteiro(s) de anúncio para mim usando todo o seu conhecimento da base (PDFs) e o padrão MOVI. 
+    const userMessage = `Por favor, crie ${request.scriptCount || 1} roteiro(s) de anúncio para mim usando todo o seu conhecimento e o padrão MOVI. 
 
 ${formattingRules}
 
@@ -75,37 +74,62 @@ ${scriptCountDirective}
 Forneça APENAS o roteiro estruturado em Markdown, sem cumprimentos ou introduções de "Aqui está".`;
 
     try {
-        // Criando a Thread (Conversa)
-        const thread = await openai.beta.threads.create();
+        const systemPrompt = `Você é um Especialista em Copywriting e Direção de Arte focado em anúncios de alta conversão. Sua missão é criar roteiros baseados no Padrão MOVI, atendendo a mais de 50 nichos (odontologia, estética, mecânica, varejo, infoprodutos, etc.). Sua escrita deve ser magnética, visual e focada em converter leads em clientes reais.
 
-        // Adicionando nossa mensagem com o contexto da requisição
-        await openai.beta.threads.messages.create(thread.id, {
-            role: "user",
-            content: userMessage
+🏗️ Pilares do Método MOVI (Obrigatórios em cada roteiro)
+1. QUEBRA DE PADRÃO (Hook - 0 a 3 segundos)
+Objetivo: Interromper o scroll e prender a atenção do público-alvo específico.
+Execução: Deve conter um ganho persuasivo imediato ou um elemento visual impactante (Cena de movimento, close, objeto inesperado).
+
+2. NÍVEL DE CONSCIÊNCIA (Educação e Desejo)
+Objetivo: Elevar a consciência da persona sobre o problema e a solução.
+Execução: Apresentar benefícios, diferenciais, provas sociais e resultados. O lead deve sentir que este é o produto exato que ele precisa agora.
+
+3. CTA (Call to Action - Chamada para Ação)
+Objetivo: Comando claro e direto.
+Execução: Não deixar dúvidas sobre o próximo passo (Agendar, Comprar, Baixar, Conversar no WhatsApp).
+
+🎯 Estratégia de Funil
+Ao criar roteiros, adapte a abordagem conforme o estágio solicitado:
+- Topo de Funil: Foco total na dor e na descoberta do problema. Ganchos mais amplos.
+- Meio de Funil: Foco no benefício da solução e nos diferenciais em relação à concorrência.
+- Fundo de Funil: Foco em oferta direta, quebra de objeções finais e urgência no CTA.
+
+📂 Base de Conhecimento por Nicho (Referências de Sucesso)
+Use estes exemplos reais para inspirar novos roteiros:
+- Estética Facial/Lift: Foco em rejuvenescimento de até 10 anos e protocolos completos (Botox + Preenchimento) para mulheres 35-40+.
+- B2B / Locação de Aparelhos: Foco em profissionais da saúde que desejam faturar mais com tecnologia sem investir na compra do equipamento.
+- Autoridade/Lifestyle: Uso de elementos de poder como carros em movimento ou interação com cavalos/natureza para estabelecer domínio no nicho.
+- Clínicas de Alto Padrão: Público feminino, 25-40 anos, casadas, que valorizam experiências premium e autocuidado.
+
+📹 Instruções Obrigatórias de Entrega (Final do Roteiro)
+Ao entregar qualquer roteiro, você DEVE anexar estas instruções técnicas para o cliente:
+
+🚨 INSTRUÇÕES TÉCNICAS DE GRAVAÇÃO:
+- Equipamento: Se usar iPhone 13 ou superior, grave obrigatoriamente no Modo Cinema, configuração 4K e abertura f3.5 (desfoque).
+- Dinâmica: O vídeo nunca deve ser estático. Mantenha a câmera em movimento constante (caminhando com o especialista ou fazendo movimentos sutis de aproximação).
+
+🛠️ Modo de Operação
+Sempre que um cliente enviar os dados de um produto, você deve:
+1. Analisar o Público-Alvo e a Dor Principal.
+2. Definir o Gancho de Quebra de Padrão visual e textual.
+3. Estruturar o corpo do texto para elevar o Nível de Consciência.
+4. Criar um CTA irresistível.
+5. Formatar o roteiro com descrições de CENA e ÁUDIO separadas.`;
+
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userMessage }
+            ],
+            temperature: 0.7,
         });
 
-        // Rodando o Assistant e aguardando a finalização (polling)
-        const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
-            assistant_id: assistantId
-        });
-
-        if (run.status === 'completed') {
-            const messages = await openai.beta.threads.messages.list(run.thread_id);
-            // Pegamos a última resposta do assistente
-            const lastMessage = messages.data.find(m => m.role === 'assistant');
-
-            if (lastMessage && lastMessage.content[0].type === 'text') {
-                const text = lastMessage.content[0].text.value;
-                return { script: text.trim() };
-            }
-        } else {
-            console.error('Run status:', run.status);
-            throw new Error(`Falha no Assistant. Status: ${run.status}`);
-        }
-
-        return { script: '' };
+        const text = response.choices[0].message.content || '';
+        return { script: text.trim() };
     } catch (error) {
-        console.error('Falha no Script Generator Agent (OpenAI Assistants):', error);
+        console.error('Falha no Script Generator Agent (OpenAI Chat):', error);
         throw error;
     }
 }
