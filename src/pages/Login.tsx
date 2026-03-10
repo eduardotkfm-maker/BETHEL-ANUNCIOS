@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function Login() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
 
     const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -18,6 +20,13 @@ export default function Login() {
     });
 
     const from = location.state?.from?.pathname || '/';
+
+    // Redireciona automaticamente quando o AuthContext detectar o usuário logado
+    useEffect(() => {
+        if (user) {
+            navigate(from, { replace: true });
+        }
+    }, [user, navigate, from]);
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,7 +42,7 @@ export default function Login() {
                     password: formData.password,
                 });
                 if (error) throw error;
-                navigate(from, { replace: true });
+                // Navegação será feita pelo useEffect ao detectar o user no AuthContext
             } else {
                 const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                     email: email,
@@ -56,8 +65,7 @@ export default function Login() {
                     }]);
                 }
 
-                // Em modo LocalHost sem confirmação de E-mail o usuário já entra
-                navigate(from, { replace: true });
+                // Navegação será feita pelo useEffect ao detectar o user no AuthContext
             }
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Auth error:', err);
@@ -68,7 +76,7 @@ export default function Login() {
             if (isRateLimit) {
                 setError('Muitas tentativas em pouco tempo. Por favor, aguarde alguns minutos.');
             } else if (isEmailNotConfirmed) {
-                setError('E-mail ainda não confirmado. Verifique sua caixa de entrada ou tente login novamente em instantes.');
+                setError('E-mail ainda não confirmado. Verifique sua caixa de entrada (incluindo spam) e clique no link de confirmação, ou peça ao administrador para confirmar manualmente.');
             } else {
                 setError(err.message || 'Erro ao autenticar. Verifique suas credenciais.');
             }
