@@ -835,33 +835,29 @@ export default function GoldLibrary() {
                                 />
                             </div>
 
-                            {/* Estilo (Pasta) */}
-                            {viewMode !== 'niche' && (
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">📁 Pasta / Estilos de Gravação</label>
-                                    <select
-                                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none font-medium"
-                                        value={newCreative.style}
-                                        onChange={(e) => setNewCreative({ ...newCreative, style: e.target.value })}
-                                    >
-                                        {styles.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                                    </select>
-                                </div>
-                            )}
+                            {/* Estilo (Pasta) — sempre visível para evitar fallback errado */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">📁 Pasta / Estilos de Gravação</label>
+                                <select
+                                    className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none font-medium"
+                                    value={newCreative.style}
+                                    onChange={(e) => setNewCreative({ ...newCreative, style: e.target.value })}
+                                >
+                                    {styles.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                </select>
+                            </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                {viewMode !== 'style' && (
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Nicho</label>
-                                        <select
-                                            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none"
-                                            value={newCreative.niche}
-                                            onChange={(e) => setNewCreative({ ...newCreative, niche: e.target.value })}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Nicho</label>
+                                    <select
+                                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none"
+                                        value={newCreative.niche}
+                                        onChange={(e) => setNewCreative({ ...newCreative, niche: e.target.value })}
                                         >
                                             {niches.map((n) => <option key={n.id} value={n.name}>{n.name}</option>)}
                                         </select>
                                     </div>
-                                )}
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Formato</label>
                                     <select
