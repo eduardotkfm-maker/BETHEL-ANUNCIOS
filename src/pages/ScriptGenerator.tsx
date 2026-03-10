@@ -3,6 +3,7 @@ import { Send, Copy, FileText, Check, RefreshCw, Trash2, Sparkles, X } from 'luc
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { generateScript } from '../lib/agents/scriptGeneratorAgent';
+import { traduzirErro } from '../lib/translateError';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -146,7 +147,7 @@ export default function ScriptGenerator() {
         } catch (error) {
             console.error('Falha ao gerar o roteiro:', error);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            alert("Erro ao tentar gerar Roteiro com a IA.\nDetalhes: " + ((error as any)?.message || "Verifique o console do navegador."));
+            alert("Erro ao tentar gerar Roteiro com a IA.\nDetalhes: " + traduzirErro(error, "Verifique sua conexão e tente novamente."));
         } finally {
             setIsGenerating(false);
         }
@@ -208,7 +209,7 @@ export default function ScriptGenerator() {
         } catch (error) {
             console.error('Falha ao gerar o roteiro:', error);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            alert("Erro ao tentar gerar Roteiro com a IA.\nDetalhes: " + ((error as any)?.message || "Verifique o console do navegador."));
+            alert("Erro ao tentar gerar Roteiro com a IA.\nDetalhes: " + traduzirErro(error, "Verifique sua conexão e tente novamente."));
         } finally {
             setIsGeneratingVariation(false);
         }

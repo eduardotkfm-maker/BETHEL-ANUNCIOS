@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { traduzirErro } from '../lib/translateError';
 import { Mail, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function Login() {
@@ -37,12 +38,18 @@ export default function Login() {
 
         try {
             if (isLogin) {
-                const { error } = await supabase.auth.signInWithPassword({
+                const { data, error } = await supabase.auth.signInWithPassword({
                     email: email,
                     password: formData.password,
                 });
                 if (error) throw error;
-                // Navegação será feita pelo useEffect ao detectar o user no AuthContext
+
+                // Login deu certo — mantém loading=true até o useEffect redirecionar
+                // Se por algum motivo o redirect não acontecer em 5s, libera o botão
+                if (data.session) {
+                    setTimeout(() => setLoading(false), 5000);
+                    return; // NÃO executa finally
+                }
             } else {
                 const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                     email: email,
@@ -62,27 +69,25 @@ export default function Login() {
                         id: signUpData.user.id,
                         first_name: formData.firstName.trim(),
                         last_name: formData.lastName.trim()
-                    }]);
+                    }]).then(() => {});  // ignora erro duplicado
                 }
 
-                // Navegação será feita pelo useEffect ao detectar o user no AuthContext
+                // Se o signup retornou sessão, o usuário já está logado (sem confirmação de email)
+                if (signUpData.session) {
+                    setTimeout(() => setLoading(false), 5000);
+                    return;
+                }
+
+                // Se NÃO retornou sessão = confirmação de email pendente
+                setError('Conta criada! Verifique seu e-mail para confirmar o cadastro antes de fazer login.');
+                setLoading(false);
+                return;
             }
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Auth error:', err);
-
-            const isRateLimit = err.message?.toLowerCase().includes('rate limit') || err.status === 429;
-            const isEmailNotConfirmed = err.message?.includes('Email not confirmed');
-
-            if (isRateLimit) {
-                setError('Muitas tentativas em pouco tempo. Por favor, aguarde alguns minutos.');
-            } else if (isEmailNotConfirmed) {
-                setError('E-mail ainda não confirmado. Verifique sua caixa de entrada (incluindo spam) e clique no link de confirmação, ou peça ao administrador para confirmar manualmente.');
-            } else {
-                setError(err.message || 'Erro ao autenticar. Verifique suas credenciais.');
-            }
-        } finally {
-            setLoading(false);
+            setError(traduzirErro(err, 'Erro ao autenticar. Verifique suas credenciais.'));
         }
+        setLoading(false);
     };
 
     return (

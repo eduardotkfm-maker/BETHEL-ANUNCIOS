@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { traduzirErro } from '../lib/translateError';
 import { Camera, Save, LogOut, Loader2, Key, User, ShieldCheck, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -82,7 +83,7 @@ export default function Settings() {
             showMessage('success', 'Foto de perfil atualizada com sucesso!');
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Error uploading avatar:', error);
-            showMessage('error', error.message || 'Erro ao fazer upload da imagem.');
+            showMessage('error', traduzirErro(error, 'Erro ao fazer upload da imagem.'));
         } finally {
             setIsLoading(false);
         }
@@ -99,7 +100,7 @@ export default function Settings() {
             showMessage('success', 'Perfil salvo com sucesso!');
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Update profile error:', error);
-            showMessage('error', error.message || 'Erro ao salvar perfil.');
+            showMessage('error', traduzirErro(error, 'Erro ao salvar perfil.'));
         } finally {
             setIsSaving(false);
         }
@@ -133,7 +134,7 @@ export default function Settings() {
 
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Update password error:', error);
-            showMessage('error', error.message || 'Erro ao atualizar a senha.');
+            showMessage('error', traduzirErro(error, 'Erro ao atualizar a senha.'));
         } finally {
             setIsSaving(false);
         }

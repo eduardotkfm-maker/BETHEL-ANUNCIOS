@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { useAuth } from '../contexts/AuthContext';
+import { traduzirErro } from '../lib/translateError';
 
 interface Task {
     id: string; // uuid from DB
@@ -187,7 +188,7 @@ export default function ProductionWorkflow() {
             setNewTask({ status: 'idea' });
         } else {
             console.error("Erro ao inserir", error);
-            alert("Erro ao adicionar: " + (error?.message || "Erro desconhecido"));
+            alert("Erro ao adicionar: " + traduzirErro(error, "Erro desconhecido"));
         }
     };
 

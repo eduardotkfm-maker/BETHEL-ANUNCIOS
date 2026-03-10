@@ -5,6 +5,7 @@ import { modelCreativeFromVideo } from '../lib/aiClient';
 import { supabase } from '../lib/supabase';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { traduzirErro } from '../lib/translateError';
 
 export default function AdAnalyzer() {
     const location = useLocation();
@@ -76,7 +77,7 @@ export default function AdAnalyzer() {
             }]);
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error("Erro no processamento de vídeo:", error);
-            alert(error?.message || "Erro ao analisar o vídeo. Tente um arquivo menor ou verifique sua conexão.");
+            alert(traduzirErro(error, "Erro ao analisar o vídeo. Tente um arquivo menor ou verifique sua conexão."));
         } finally {
             setIsModeling(false);
         }
@@ -142,7 +143,7 @@ export default function AdAnalyzer() {
 
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Erro na modelagem:', err);
-            alert("Ocorreu um erro chamando a IA. " + err.message);
+            alert("Ocorreu um erro chamando a IA. " + traduzirErro(err));
             setIsModeling(false);
         }
     };

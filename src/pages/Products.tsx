@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Box, X, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { traduzirErro } from '../lib/translateError';
 
 interface Product {
     id: string;
@@ -97,7 +98,7 @@ export default function Products() {
                 setIsModalOpen(false);
             } else {
                 console.error("Insert error:", error);
-                alert("Erro ao criar o Produto Novo: " + error.message);
+                alert("Erro ao criar o Produto Novo: " + traduzirErro(error));
             }
         }
     };

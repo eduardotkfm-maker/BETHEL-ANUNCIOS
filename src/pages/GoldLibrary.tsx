@@ -3,6 +3,7 @@ import { Star, Plus, Search, Filter, Video, Trash2, X, Download, Wand2, UploadCl
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { traduzirErro } from '../lib/translateError';
 
 import { ModelCard } from '../components/GoldLibrary/ModelCard';
 import { VideoCard } from '../components/GoldLibrary/VideoCard';
@@ -341,7 +342,7 @@ export default function GoldLibrary() {
                 throw error;
             }
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-            alert('Falha crítica ao gravar a Referência. Cheque console. ' + (error?.message || ''));
+            alert('Falha ao gravar a Referência. ' + traduzirErro(error));
             console.error(error);
         } finally {
             setIsUploading(false);
@@ -398,7 +399,7 @@ export default function GoldLibrary() {
             alert('Exemplo de modelo atualizado com sucesso!');
 
         } catch (error: any) {
-            alert('Erro no upload do exemplo: ' + error.message);
+            alert('Erro no upload do exemplo: ' + traduzirErro(error));
         } finally {
             setIsUploadingModelVideo(null);
         }
