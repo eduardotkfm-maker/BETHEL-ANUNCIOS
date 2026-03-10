@@ -95,14 +95,11 @@ export default function GoldLibrary() {
         if (!user) return;
         setIsLoading(true);
 
-        let query = supabase.from('gold_library').select('*');
-
-        // Se NÃO for admin, filtra apenas os dele ou os públicos
-        if (!isAdmin) {
-            query = query.or(`user_id.eq.${user.id},user_id.is.null`);
-        }
-
-        const { data, error } = await query.order('created_at', { ascending: false });
+        // RLS já garante acesso: todos podem ver gold_library (migration 000004)
+        const { data, error } = await supabase
+            .from('gold_library')
+            .select('*')
+            .order('created_at', { ascending: false });
 
         if (!error && data) {
             setCreatives(data);
@@ -114,13 +111,12 @@ export default function GoldLibrary() {
 
     const fetchStyles = async () => {
         if (!user) return;
-        let query = supabase.from('styles').select('*');
-
-        if (!isAdmin) {
-            query = query.or(`user_id.eq.${user.id},user_id.is.null`);
-        }
-
-        const { data, error } = await query.order('name', { ascending: true });
+        // Todos os estilos visíveis: globais (user_id IS NULL) + do próprio usuário
+        const { data, error } = await supabase
+            .from('styles')
+            .select('*')
+            .or(`user_id.is.null,user_id.eq.${user.id}`)
+            .order('name', { ascending: true });
 
         if (!error && data) {
             setStyles(data);
@@ -131,13 +127,12 @@ export default function GoldLibrary() {
 
     const fetchNiches = async () => {
         if (!user) return;
-        let query = supabase.from('niches').select('*');
-
-        if (!isAdmin) {
-            query = query.or(`user_id.eq.${user.id},user_id.is.null`);
-        }
-
-        const { data, error } = await query.order('name', { ascending: true });
+        // Todos os nichos visíveis: globais (user_id IS NULL) + do próprio usuário
+        const { data, error } = await supabase
+            .from('niches')
+            .select('*')
+            .or(`user_id.is.null,user_id.eq.${user.id}`)
+            .order('name', { ascending: true });
 
         if (!error && data) {
             setNiches(data);
@@ -187,7 +182,7 @@ export default function GoldLibrary() {
                 // Add
                 const { data, error } = await supabase
                     .from(table)
-                    .insert([{ name: newCategoryName.trim(), user_id: user?.id }])
+                    .insert([{ name: newCategoryName.trim(), user_id: isAdmin ? null : user?.id }])
                     .select()
                     .single();
 
@@ -329,7 +324,7 @@ export default function GoldLibrary() {
                     style: newCreative.style || (styles[0]?.name || ''),
                     url: finalVideoUrl,
                     thumbnail_url: finalThumbnailUrl,
-                    user_id: user?.id
+                    user_id: null // Global: visível para todos os usuários
                 }])
                 .select()
                 .single();
