@@ -92,6 +92,19 @@ export default function GoldLibrary() {
         fetchModels();
     }, []);
 
+    // Auto-play: abre o primeiro vídeo automaticamente para usuários não-admin
+    const hasAutoPlayed = useRef(false);
+    useEffect(() => {
+        if (!isAdmin && !isLoading && creatives.length > 0 && !hasAutoPlayed.current) {
+            hasAutoPlayed.current = true;
+            const first = creatives[0];
+            // Entra na pasta do primeiro vídeo para permitir swipe
+            if (first.style && viewMode === 'style') setSelectedStyle(first.style);
+            else if (first.niche) setSelectedNiche(first.niche);
+            setPlayingVideo(first);
+        }
+    }, [isLoading, creatives, isAdmin]);
+
     const fetchCreatives = async () => {
         if (!user) return;
         setIsLoading(true);

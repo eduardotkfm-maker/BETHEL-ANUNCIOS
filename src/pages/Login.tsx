@@ -65,11 +65,11 @@ export default function Login() {
 
                 // Garante a inserção no perfil público (fallback para o trigger)
                 if (signUpData.user) {
-                    await supabase.from('profiles').insert([{
+                    await supabase.from('profiles').upsert([{
                         id: signUpData.user.id,
                         first_name: formData.firstName.trim(),
                         last_name: formData.lastName.trim()
-                    }]).then(() => {});  // ignora erro duplicado
+                    }], { onConflict: 'id' }).then(() => {});
                 }
 
                 // Se o signup retornou sessão, o usuário já está logado (sem confirmação de email)
