@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-
 async function callOpenAI(params: {
     messages: Array<{ role: string; content: string }>;
     model?: string;
@@ -68,11 +66,7 @@ export const modelCreativeFromVideo = async (
     mimeType: string,
     productData: any
 ): Promise<{ title: string; script: string }> => {
-    if (!geminiKey) {
-        throw new Error("Chave VITE_GEMINI_API_KEY não encontrada no .env!");
-    }
-
-    // ── FASE 1: Gemini analisa o vídeo (visão + áudio nativo) ──────────────
+    // ── FASE 1: Gemini analisa o vídeo via serverless proxy ──────────────
     const geminiPrompt = `
 Você é um Analista de Criativos Publicitários. Analise este vídeo de anúncio e forneça:
 
@@ -87,118 +81,29 @@ Responda em português do Brasil de forma detalhada e organizada.
 `;
 
     let geminiAnalysis = '';
-    const fileSizeMB = (videoBase64.length * 0.75 / 1024 / 1024).toFixed(1);
-    console.log(`📤 Enviando vídeo para Gemini File API (${fileSizeMB}MB, ${mimeType})...`);
 
     try {
-        // ── PASSO 1: Upload do vídeo para a File API do Google ──────────────
-        const binaryString = atob(videoBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        const videoBlob = new Blob([bytes], { type: mimeType });
-
-        // Iniciar upload resumable
-        const uploadInitRes = await fetch(
-            `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${geminiKey}`,
-            {
-                method: 'POST',
-                headers: {
-                    'X-Goog-Upload-Protocol': 'resumable',
-                    'X-Goog-Upload-Command': 'start',
-                    'X-Goog-Upload-Header-Content-Length': String(videoBlob.size),
-                    'X-Goog-Upload-Header-Content-Type': mimeType,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    file: { displayName: 'video_analise.mp4' }
-                })
-            }
-        );
-
-        if (!uploadInitRes.ok) {
-            const errText = await uploadInitRes.text();
-            throw new Error(`Falha ao iniciar upload: ${uploadInitRes.status} - ${errText}`);
-        }
-
-        const uploadUrl = uploadInitRes.headers.get('X-Goog-Upload-URL');
-        if (!uploadUrl) throw new Error('URL de upload não retornada pelo Google.');
-
-        console.log('📤 Upload URL obtida, enviando bytes do vídeo...');
-
-        // Enviar os bytes reais do vídeo
-        const uploadRes = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: {
-                'Content-Length': String(videoBlob.size),
-                'X-Goog-Upload-Offset': '0',
-                'X-Goog-Upload-Command': 'upload, finalize',
-            },
-            body: videoBlob
+        const geminiRes = await fetch('/api/gemini-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                videoBase64,
+                mimeType,
+                prompt: geminiPrompt,
+            }),
         });
 
-        if (!uploadRes.ok) {
-            const errText = await uploadRes.text();
-            throw new Error(`Falha no upload do vídeo: ${uploadRes.status} - ${errText}`);
+        if (!geminiRes.ok) {
+            const err = await geminiRes.json().catch(() => ({}));
+            throw new Error(err?.error || `Gemini proxy error: ${geminiRes.status}`);
         }
 
-        const uploadResult = await uploadRes.json();
-        const fileUri = uploadResult.file?.uri;
-        const fileName = uploadResult.file?.name;
-
-        if (!fileUri) throw new Error('URI do arquivo não retornada após upload.');
-        console.log(`✅ Vídeo enviado com sucesso: ${fileName}`);
-
-        // ── PASSO 2: Aguardar processamento do vídeo ───────────────────────
-        let fileState = uploadResult.file?.state || 'PROCESSING';
-        while (fileState === 'PROCESSING') {
-            console.log('⏳ Aguardando Gemini processar o vídeo...');
-            await new Promise(r => setTimeout(r, 4000));
-
-            const statusRes = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${geminiKey}`
-            );
-            const statusData = await statusRes.json();
-            fileState = statusData.state;
-
-            if (fileState === 'FAILED') {
-                throw new Error('O Gemini falhou ao processar o vídeo. Tente um formato diferente.');
-            }
-        }
-
-        console.log('🧠 Vídeo processado, iniciando análise com Gemini 2.5 Flash...');
-
-        // ── PASSO 3: Chamar generateContent (Versão Ultra Estável)
-        const generateRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: geminiPrompt },
-                            { fileData: { mimeType: mimeType, fileUri: fileUri } }
-                        ]
-                    }]
-                })
-            }
-        );
-
-        if (!generateRes.ok) {
-            const errText = await generateRes.text();
-            throw new Error(`Erro na geração do Gemini: ${generateRes.status} - ${errText}`);
-        }
-
-        const generateData = await generateRes.json();
-        geminiAnalysis = generateData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const geminiData = await geminiRes.json();
+        geminiAnalysis = geminiData.analysis || '';
 
         if (!geminiAnalysis) {
             throw new Error('O Gemini não retornou análise. Tente novamente.');
         }
-
-        console.log('✅ Gemini analisou o vídeo com sucesso!');
     } catch (geminiError: any) {
         console.error('❌ Erro detalhado do Gemini:', geminiError);
         throw new Error(geminiError?.message || 'Falha ao analisar o vídeo com Gemini.');
