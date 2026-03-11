@@ -1,23 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import OpenAI from 'openai';
 
-const openaiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
 const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-const openai = new OpenAI({
-    apiKey: openaiKey,
-    dangerouslyAllowBrowser: true
-});
+async function callOpenAI(params: {
+    messages: Array<{ role: string; content: string }>;
+    model?: string;
+    temperature?: number;
+    response_format?: { type: string };
+}): Promise<string> {
+    const res = await fetch('/api/openai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `OpenAI proxy error: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '{}';
+}
 
 
 export const analyzePoorPerformingAds = async (
     csvData: any[],
     goldReferences: any[]
 ): Promise<{ title: string; script: string }> => {
-    if (!openaiKey) {
-        throw new Error("Chave VITE_OPENAI_API_KEY não encontrada no .env!");
-    }
-
     const sampleData = csvData.slice(0, 5);
 
     const prompt = `
@@ -40,16 +48,12 @@ REGRAS:
 `;
 
     try {
-        const response = await openai.chat.completions.create({
+        const text = await callOpenAI({
             model: "gpt-4o",
-            messages: [
-                { role: "system", content: prompt }
-            ],
+            messages: [{ role: "system", content: prompt }],
             response_format: { type: "json_object" },
             temperature: 0.7,
         });
-
-        const text = response.choices[0].message.content || '{}';
         return JSON.parse(text);
     } catch (e) {
         console.error("Erro na geração da OpenAI:", e);
@@ -66,9 +70,6 @@ export const modelCreativeFromVideo = async (
 ): Promise<{ title: string; script: string }> => {
     if (!geminiKey) {
         throw new Error("Chave VITE_GEMINI_API_KEY não encontrada no .env!");
-    }
-    if (!openaiKey) {
-        throw new Error("Chave VITE_OPENAI_API_KEY não encontrada no .env!");
     }
 
     // ── FASE 1: Gemini analisa o vídeo (visão + áudio nativo) ──────────────
@@ -239,16 +240,12 @@ SUA TAREFA:
 `;
 
     try {
-        const response = await openai.chat.completions.create({
+        const text = await callOpenAI({
             model: "gpt-4o",
-            messages: [
-                { role: "user", content: gptPrompt }
-            ],
+            messages: [{ role: "user", content: gptPrompt }],
             response_format: { type: "json_object" },
             temperature: 0.8,
         });
-
-        const text = response.choices[0].message.content || '{}';
         return JSON.parse(text);
     } catch (gptError) {
         console.error('❌ Erro no GPT:', gptError);

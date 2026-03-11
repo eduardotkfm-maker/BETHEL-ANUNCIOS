@@ -1,21 +1,9 @@
 import type { ScriptGeneratorRequest, ScriptGeneratorResponse } from './types';
-import OpenAI from 'openai';
-
-const apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
-
-// Inicializando o client do OpenAI permitindo o uso no browser (necessário em Vite client-side sem proxy)
-const openai = new OpenAI({
-    apiKey: apiKey,
-    dangerouslyAllowBrowser: true
-});
 
 /**
  * Serviço responsável por comunicar com a IA de Geração de Roteiros (Migrado para OpenAI).
  */
 export async function generateScript(request: ScriptGeneratorRequest): Promise<ScriptGeneratorResponse> {
-    if (!apiKey) {
-        throw new Error("Chave VITE_OPENAI_API_KEY não encontrada no .env!");
-    }
 
     const variationInstructions = request.isVariation && request.baseScript
         ? `\n[INSTRUÇÃO CRÍTICA DE VARIAÇÃO]: O usuário pediu uma VARIAÇÃO do seguinte roteiro base:\n"""\n${request.baseScript}\n"""\nCrie uma versão NOVA, com um GANCHO (Hook) completamente diferente e uma abordagem alternativa de Copy, mas mantendo a mesma promessa e produto.\n`
@@ -117,16 +105,26 @@ Sempre que um cliente enviar os dados de um produto, você deve:
 4. Criar um CTA irresistível.
 5. Formatar o roteiro com descrições de CENA e ÁUDIO separadas.`;
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userMessage }
-            ],
-            temperature: 0.7,
+        const res = await fetch('/api/openai-chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "gpt-4o",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userMessage }
+                ],
+                temperature: 0.7,
+            }),
         });
 
-        const text = response.choices[0].message.content || '';
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.error?.message || `OpenAI proxy error: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || '';
         return { script: text.trim() };
     } catch (error) {
         console.error('Falha no Script Generator Agent (OpenAI Chat):', error);
