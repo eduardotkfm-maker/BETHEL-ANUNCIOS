@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, Plus, Search, Filter, Video, Trash2, X, Download, Wand2, UploadCloud, FolderOpen, ChevronLeft, Folder, Settings, Zap } from 'lucide-react';
+import { Star, Plus, Search, Filter, Video, Trash2, X, Download, Wand2, UploadCloud, FolderOpen, ChevronLeft, ChevronRight, Folder, Settings, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -76,6 +76,9 @@ export default function GoldLibrary() {
     const touchStartY = useRef<number | null>(null);
     const isDragging = useRef<boolean>(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const [videoProgress, setVideoProgress] = useState(0);
+    const [videoDuration, setVideoDuration] = useState(0);
+    const progressBarRef = useRef<HTMLDivElement>(null);
 
     // DB state
     const [creatives, setCreatives] = useState<Creative[]>([]);
@@ -956,18 +959,27 @@ export default function GoldLibrary() {
                     </button>
 
                     <div
-                        className="w-full h-full md:w-auto md:h-auto md:max-w-lg flex flex-col items-center text-center relative"
+                        className="w-full h-full md:w-auto md:h-auto flex items-center justify-center gap-4 relative"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Title pill floating Top for mobile, or static for desktop */}
-                        <div className="absolute top-8 left-0 right-0 z-10 flex justify-center pointer-events-none px-4">
-                            <span className="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold uppercase rounded-md tracking-widest shadow-lg">
-                                {playingVideo.style} • {playingVideo.niche}
-                            </span>
-                        </div>
+                        {/* Previous Button — desktop only */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleSwipe(-1); }}
+                            className="hidden md:flex items-center justify-center w-14 h-14 rounded-full bg-white/10 hover:bg-white/25 text-white backdrop-blur-md transition-all shrink-0"
+                        >
+                            <ChevronLeft className="w-8 h-8" />
+                        </button>
 
-                        {/* Video Container */}
-                        <div className="w-full h-dvh md:w-[340px] md:h-[65vh] xl:md:h-[75vh] md:rounded-3xl bg-black overflow-hidden shadow-2xl md:border border-white/10 md:ring-4 ring-white/5 relative flex items-center justify-center group flex-col">
+                        <div className="flex flex-col items-center text-center relative">
+                            {/* Title pill floating Top for mobile, or static for desktop */}
+                            <div className="absolute top-8 left-0 right-0 z-10 flex justify-center pointer-events-none px-4">
+                                <span className="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold uppercase rounded-md tracking-widest shadow-lg">
+                                    {playingVideo.style} • {playingVideo.niche}
+                                </span>
+                            </div>
+
+                            {/* Video Container */}
+                            <div className="w-full h-dvh md:w-[420px] md:h-[75vh] xl:w-[480px] xl:h-[82vh] md:rounded-3xl bg-black overflow-hidden shadow-2xl md:border border-white/10 md:ring-4 ring-white/5 relative flex items-center justify-center group flex-col">
                             {isDriveFolder(playingVideo.url) ? (
                                 <div className="flex flex-col items-center gap-4 p-8 text-center text-white cursor-default">
                                     <div className="p-6 bg-yellow-500/20 rounded-full">
@@ -998,6 +1010,12 @@ export default function GoldLibrary() {
                                     autoPlay
                                     playsInline
                                     loop
+                                    onLoadedMetadata={() => {
+                                        if (videoRef.current) setVideoDuration(videoRef.current.duration);
+                                    }}
+                                    onTimeUpdate={() => {
+                                        if (videoRef.current) setVideoProgress(videoRef.current.currentTime);
+                                    }}
                                     onClick={(e) => {
                                         if (isDragging.current) {
                                             e.stopPropagation();
@@ -1011,6 +1029,28 @@ export default function GoldLibrary() {
                                     className="w-full h-full object-contain md:object-contain bg-black cursor-pointer"
                                     controlsList="nodownload"
                                 />
+                            )}
+
+                            {/* Video Progress Bar */}
+                            {videoDuration > 0 && !isDriveFolder(playingVideo.url) && !(playingVideo.url.includes('vimeo') || playingVideo.url.includes('youtube') || playingVideo.url.includes('drive.google.com')) && (
+                                <div
+                                    ref={progressBarRef}
+                                    className="absolute bottom-[140px] md:bottom-[150px] left-4 right-4 z-20 h-6 flex items-center cursor-pointer pointer-events-auto group"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!progressBarRef.current || !videoRef.current) return;
+                                        const rect = progressBarRef.current.getBoundingClientRect();
+                                        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                                        videoRef.current.currentTime = ratio * videoDuration;
+                                    }}
+                                >
+                                    <div className="w-full h-1 group-hover:h-1.5 bg-white/20 rounded-full overflow-hidden transition-all">
+                                        <div
+                                            className="h-full bg-white rounded-full transition-[width] duration-100"
+                                            style={{ width: `${(videoProgress / videoDuration) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
                             )}
 
                             {/* Floating Action Buttons Area */}
@@ -1039,6 +1079,15 @@ export default function GoldLibrary() {
                                 </div>
                             </div>
                         </div>
+                        </div>
+
+                        {/* Next Button — desktop only */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleSwipe(1); }}
+                            className="hidden md:flex items-center justify-center w-14 h-14 rounded-full bg-white/10 hover:bg-white/25 text-white backdrop-blur-md transition-all shrink-0"
+                        >
+                            <ChevronRight className="w-8 h-8" />
+                        </button>
                     </div>
                 </div>
             )}

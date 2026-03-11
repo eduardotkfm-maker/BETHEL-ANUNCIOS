@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Wand2, Video, Check, Sparkles, Link as LinkIcon, Download, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Wand2, Video, Check, Sparkles, Link as LinkIcon, Download, AlertTriangle, Loader2 } from 'lucide-react';
 import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { modelCreativeFromVideo } from '../lib/aiClient';
 import { supabase } from '../lib/supabase';
@@ -20,6 +20,18 @@ export default function AdAnalyzer() {
     const [videoUrl, setVideoUrl] = useState('');
     const [modeledScript, setModeledScript] = useState<{ title: string, script: string | any[] } | null>(null);
     const [driveFallback, setDriveFallback] = useState(false); // mostra painel de fallback guiado
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        if (isModeling) {
+            setElapsedSeconds(0);
+            timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+        } else {
+            if (timerRef.current) clearInterval(timerRef.current);
+        }
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }, [isModeling]);
 
     useEffect(() => {
         if (location.state?.sourceVideoUrl) {
@@ -217,9 +229,38 @@ export default function AdAnalyzer() {
                             disabled={(!videoFile && !videoUrl) || !selectedProductId || isModeling}
                             className="w-full mt-4 py-4 bg-linear-to-r from-indigo-600 to-purple-600 text-white font-black text-lg rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center justify-center gap-2"
                         >
-                            <Wand2 className="w-5 h-5" />
+                            {isModeling ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
                             {isModeling ? 'Decifrando Roteiro Original...' : 'Iniciar Clonagem Estrutural'}
                         </button>
+
+                        {/* Barra de progresso durante clonagem */}
+                        {isModeling && (
+                            <div className="mt-4 p-5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                                        <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
+                                            {elapsedSeconds < 10 ? 'Enviando vídeo para a IA...' :
+                                             elapsedSeconds < 25 ? 'Analisando estrutura narrativa...' :
+                                             elapsedSeconds < 45 ? 'Reescrevendo roteiro para seu produto...' :
+                                             'Finalizando clonagem estrutural...'}
+                                        </span>
+                                    </div>
+                                    <span className="text-xs font-mono font-bold text-indigo-500 dark:text-indigo-400">
+                                        {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
+                                    </span>
+                                </div>
+                                <div className="w-full h-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-full overflow-hidden">
+                                    <div className="h-full bg-linear-to-r from-indigo-500 to-purple-500 rounded-full animate-pulse" style={{
+                                        width: `${Math.min(95, elapsedSeconds < 10 ? elapsedSeconds * 3 : elapsedSeconds < 30 ? 30 + (elapsedSeconds - 10) * 2 : elapsedSeconds < 60 ? 70 + (elapsedSeconds - 30) * 0.5 : 85 + Math.min(10, (elapsedSeconds - 60) * 0.2))}%`,
+                                        transition: 'width 1s ease-out'
+                                    }} />
+                                </div>
+                                <p className="mt-2 text-xs text-indigo-500 dark:text-indigo-400">
+                                    Este processo pode levar até 1 minuto dependendo do tamanho do vídeo.
+                                </p>
+                            </div>
+                        )}
 
                         {/* ── Fallback Guiado para Google Drive ────────── */}
                         {driveFallback && videoUrl && (
