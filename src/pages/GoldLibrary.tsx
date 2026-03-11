@@ -45,10 +45,8 @@ export default function GoldLibrary() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterNiche, setFilterNiche] = useState('Todos');
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
-    const [selectedNiche, setSelectedNiche] = useState<string | null>(null);
+    const [selectedFolder, setSelectedFolder] = useState<{ type: 'style' | 'niche'; name: string } | null>(null);
     const [activeTab, setActiveTab] = useState<'library' | 'models'>('library');
-    const [viewMode, setViewMode] = useState<'style' | 'niche'>('style');
 
     // Modal Add state
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -101,9 +99,7 @@ export default function GoldLibrary() {
         if (!isAdmin && !isLoading && creatives.length > 0 && !hasAutoPlayed.current) {
             hasAutoPlayed.current = true;
             const first = creatives[0];
-            // Entra na pasta do primeiro vídeo para permitir swipe
-            if (first.style && viewMode === 'style') setSelectedStyle(first.style);
-            else if (first.niche) setSelectedNiche(first.niche);
+            if (first.style) setSelectedFolder({ type: 'style', name: first.style });
             setPlayingVideo(first);
         }
     }, [isLoading, creatives, isAdmin]);
@@ -352,8 +348,7 @@ export default function GoldLibrary() {
                 setNewCreative({ niche: niches[0]?.name || 'Emagrecimento', format: 'Reels', style: (styles[0]?.name || '') });
                 setVideoFile(null);
                 // Navigate into the folder of the newly added video
-                if (data.style && viewMode === 'style') setSelectedStyle(data.style);
-                if (data.niche && viewMode === 'niche') setSelectedNiche(data.niche);
+                if (data.style) setSelectedFolder({ type: 'style', name: data.style });
             } else {
                 throw error;
             }
@@ -456,9 +451,10 @@ export default function GoldLibrary() {
     const filteredCreatives = creatives.filter((c) => {
         const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesNiche = filterNiche === 'Todos' || c.niche === filterNiche;
-        const matchesStyle = selectedStyle ? c.style === selectedStyle : true;
-        const matchesSelectedNiche = selectedNiche ? c.niche === selectedNiche : true;
-        return matchesSearch && matchesNiche && matchesStyle && matchesSelectedNiche;
+        const matchesFolder = selectedFolder
+            ? selectedFolder.type === 'style' ? c.style === selectedFolder.name : c.niche === selectedFolder.name
+            : true;
+        return matchesSearch && matchesNiche && matchesFolder;
     });
 
     // ─── Swipe Cross-Folder Logic ────────────────────────────────────────────────
@@ -480,54 +476,31 @@ export default function GoldLibrary() {
         }
 
         // Transition to next folder if at boundary
-        if (viewMode === 'style' && selectedStyle) {
-            const currentFolderIndex = styles.findIndex(s => s.name === selectedStyle);
+        if (selectedFolder) {
+            // Build unified folder list: styles then niches
+            const allFolders: { type: 'style' | 'niche'; name: string }[] = [
+                ...styles.map(s => ({ type: 'style' as const, name: s.name })),
+                ...niches.map(n => ({ type: 'niche' as const, name: n.name })),
+            ];
+            const currentFolderIndex = allFolders.findIndex(
+                f => f.type === selectedFolder.type && f.name === selectedFolder.name
+            );
             if (currentFolderIndex === -1) return;
 
             let nextFolderIndex = currentFolderIndex + direction;
 
-            while (nextFolderIndex >= 0 && nextFolderIndex < styles.length) {
-                const nextStyleName = styles[nextFolderIndex].name;
+            while (nextFolderIndex >= 0 && nextFolderIndex < allFolders.length) {
+                const nextFolder = allFolders[nextFolderIndex];
 
                 const nextFolderCreatives = creatives.filter((c) => {
                     const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase());
                     const matchesNiche = filterNiche === 'Todos' || c.niche === filterNiche;
-                    const matchesStyle = c.style === nextStyleName;
-                    return matchesSearch && matchesNiche && matchesStyle;
+                    const matchesFolder = nextFolder.type === 'style' ? c.style === nextFolder.name : c.niche === nextFolder.name;
+                    return matchesSearch && matchesNiche && matchesFolder;
                 });
 
                 if (nextFolderCreatives.length > 0) {
-                    setSelectedStyle(nextStyleName);
-                    if (direction === 1) {
-                        setPlayingVideo(nextFolderCreatives[0]);
-                    } else {
-                        setPlayingVideo(nextFolderCreatives[nextFolderCreatives.length - 1]);
-                    }
-                    return;
-                }
-                nextFolderIndex += direction;
-            }
-        } else if (viewMode === 'niche' && selectedNiche) {
-            const currentFolderIndex = niches.findIndex(n => n.name === selectedNiche);
-            if (currentFolderIndex === -1) return;
-
-            let nextFolderIndex = currentFolderIndex + direction;
-
-            while (nextFolderIndex >= 0 && nextFolderIndex < niches.length) {
-                const nextNicheName = niches[nextFolderIndex].name;
-                if (nextNicheName === 'Estilos de Gravação') {
-                    nextFolderIndex += direction;
-                    continue;
-                }
-
-                const nextFolderCreatives = creatives.filter((c) => {
-                    const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesNiche = c.niche === nextNicheName;
-                    return matchesSearch && matchesNiche;
-                });
-
-                if (nextFolderCreatives.length > 0) {
-                    setSelectedNiche(nextNicheName);
+                    setSelectedFolder(nextFolder);
                     if (direction === 1) {
                         setPlayingVideo(nextFolderCreatives[0]);
                     } else {
@@ -541,11 +514,11 @@ export default function GoldLibrary() {
     };
 
     // ─── Folder view helpers ─────────────────────────────────────────────────────
-    const openAddModal = (style?: string, niche?: string) => {
+    const openAddModal = (folder?: { type: 'style' | 'niche'; name: string } | null) => {
         setNewCreative({
-            niche: niche || (filterNiche !== 'Todos' ? filterNiche : niches[0]?.name || 'Emagrecimento'),
+            niche: folder?.type === 'niche' ? folder.name : (niches[0]?.name || 'Emagrecimento'),
             format: 'Reels',
-            style: style ? style : (styles[0]?.name || ''),
+            style: folder?.type === 'style' ? folder.name : (styles[0]?.name || ''),
         });
         setVideoFile(null);
         setIsAddModalOpen(true);
@@ -557,24 +530,24 @@ export default function GoldLibrary() {
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        {(selectedStyle || selectedNiche) && activeTab === 'library' && (
+                        {selectedFolder && activeTab === 'library' && (
                             <button
-                                onClick={() => { setSelectedStyle(null); setSelectedNiche(null); setSearchTerm(''); }}
+                                onClick={() => { setSelectedFolder(null); setSearchTerm(''); setFilterNiche('Todos'); }}
                                 className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
                             >
                                 <ChevronLeft className="w-4 h-4" /> Biblioteca
                             </button>
                         )}
-                        {(selectedStyle || selectedNiche) && activeTab === 'library' && <span className="text-gray-400 dark:text-gray-600">/</span>}
+                        {selectedFolder && activeTab === 'library' && <span className="text-gray-400 dark:text-gray-600">/</span>}
                         <h1 className="text-3xl font-bold flex items-center gap-3 text-gray-900 dark:text-gray-100">
                             <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-yellow-600 dark:text-yellow-500">
                                 <Star className="w-6 h-6 fill-current" />
                             </div>
-                            {activeTab === 'library' ? (selectedStyle || selectedNiche || 'Biblioteca de Ouro') : 'Biblioteca de Ouro'}
+                            {activeTab === 'library' ? (selectedFolder?.name || 'Biblioteca de Ouro') : 'Biblioteca de Ouro'}
                         </h1>
                     </div>
                     <p className="mt-1 text-gray-600 dark:text-gray-400">
-                        {selectedStyle && activeTab === 'library'
+                        {selectedFolder && activeTab === 'library'
                             ? `${filteredCreatives.length} vídeo(s) nesta pasta`
                             : 'Sua coleção e banco de dados avançado de anúncios que mais batem ROI.'}
                     </p>
@@ -583,13 +556,13 @@ export default function GoldLibrary() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
                     <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl shrink-0">
                         <button
-                            onClick={() => { setActiveTab('library'); setSelectedStyle(null); }}
+                            onClick={() => { setActiveTab('library'); setSelectedFolder(null); setFilterNiche('Todos'); }}
                             className={`px-4 py-2 font-bold text-sm rounded-lg transition-all ${activeTab === 'library' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                         >
                             Criativos Salvos
                         </button>
                         <button
-                            onClick={() => { setActiveTab('models'); setSelectedStyle(null); }}
+                            onClick={() => { setActiveTab('models'); setSelectedFolder(null); setFilterNiche('Todos'); }}
                             className={`px-4 py-2 font-bold text-sm rounded-lg transition-all flex items-center gap-2 ${activeTab === 'models' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                         >
                             <Zap className="w-4 h-4" />
@@ -599,41 +572,22 @@ export default function GoldLibrary() {
 
                     {isAdmin && activeTab === 'library' && (
                         <button
-                            onClick={() => openAddModal(selectedStyle || undefined, selectedNiche || undefined)}
+                            onClick={() => openAddModal(selectedFolder)}
                             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-xl transition-all shadow-sm shrink-0 w-full sm:w-auto"
                         >
                             <Plus className="w-5 h-5" />
-                            {selectedStyle || selectedNiche ? `Subir em "${selectedStyle || selectedNiche}"` : 'Subir Referência'}
+                            {selectedFolder ? `Subir em "${selectedFolder.name}"` : 'Subir Referência'}
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* View Mode Toggle (only if in library tab and no folder is selected) */}
-            {activeTab === 'library' && !selectedStyle && !selectedNiche && (
-                <div className="flex justify-center sm:justify-start">
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                        <button
-                            onClick={() => setViewMode('style')}
-                            className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${viewMode === 'style' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                        >
-                            Ver por Estilo
-                        </button>
-                        <button
-                            onClick={() => setViewMode('niche')}
-                            className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${viewMode === 'niche' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                        >
-                            Ver por Nicho
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {/* ── Active Tab Content ──────────────────────────────────────────────── */}
             {activeTab === 'library' ? (
                 <>
                     {/* ── Search / Filter (only inside a folder) ──────────────────────── */}
-                    {selectedStyle && (
+                    {selectedFolder && (
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -675,89 +629,103 @@ export default function GoldLibrary() {
                         <div className="flex justify-center py-20">
                             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-500"></div>
                         </div>
-                    ) : (selectedStyle === null && selectedNiche === null) ? (
-                        /* ── FOLDER VIEW ─────────────────────────────────────────────── */
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {viewMode === 'style' ? (
-                                styles.map((styleObj) => {
-                                    const style = styleObj.name;
-                                    const styleVideos = creatives.filter((c) => c.style === style);
-                                    const previewThumb = styleVideos.find((c) => c.thumbnail_url)?.thumbnail_url;
-                                    return (
-                                        <button
-                                            key={styleObj.id}
-                                            onClick={() => setSelectedStyle(style)}
-                                            className="group relative flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden text-left hover:shadow-lg hover:border-yellow-300 dark:hover:border-yellow-600 transition-all"
-                                        >
-                                            {/* Thumbnail strip or placeholder */}
-                                            <div className="aspect-video w-full bg-gray-100 dark:bg-gray-900/50 relative overflow-hidden group/folderthumb">
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                    <FolderOpen className="w-10 h-10 text-gray-300 dark:text-gray-600 group-hover:text-yellow-400 transition-colors" />
-                                                </div>
-                                                {previewThumb && (
-                                                    <img
-                                                        src={previewThumb}
-                                                        alt={style}
-                                                        className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 z-10"
-                                                        referrerPolicy="no-referrer"
-                                                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent z-20" />
-                                                {/* Count badge */}
-                                                <span className="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-bold bg-black/60 text-white rounded-md">
-                                                    {styleVideos.length} vídeo{styleVideos.length !== 1 ? 's' : ''}
-                                                </span>
-                                            </div>
+                    ) : selectedFolder === null ? (
+                        /* ── FOLDER VIEW (Estilos + Nichos) ─────────────────────────── */
+                        <div className="space-y-6">
+                            {/* ── Estilos ── */}
+                            {styles.length > 0 && (
+                                <>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Estilos</span>
+                                        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {styles.map((styleObj) => {
+                                            const folderVideos = creatives.filter((c) => c.style === styleObj.name);
+                                            const previewThumb = folderVideos.find((c) => c.thumbnail_url)?.thumbnail_url;
+                                            return (
+                                                <button
+                                                    key={`style-${styleObj.id}`}
+                                                    onClick={() => setSelectedFolder({ type: 'style', name: styleObj.name })}
+                                                    className="group relative flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden text-left hover:shadow-lg hover:border-yellow-300 dark:hover:border-yellow-600 transition-all"
+                                                >
+                                                    <div className="aspect-video w-full bg-gray-100 dark:bg-gray-900/50 relative overflow-hidden">
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <FolderOpen className="w-10 h-10 text-gray-300 dark:text-gray-600 group-hover:text-yellow-400 transition-colors" />
+                                                        </div>
+                                                        {previewThumb && (
+                                                            <img
+                                                                src={previewThumb}
+                                                                alt={styleObj.name}
+                                                                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 z-10"
+                                                                referrerPolicy="no-referrer"
+                                                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                            />
+                                                        )}
+                                                        <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent z-20" />
+                                                        <span className="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-bold bg-black/60 text-white rounded-md z-30">
+                                                            {folderVideos.length} vídeo{folderVideos.length !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 p-4">
+                                                        <Folder className="w-5 h-5 text-yellow-500 dark:text-yellow-400 shrink-0" />
+                                                        <span className="font-bold text-sm text-gray-800 dark:text-gray-100 leading-tight group-hover:text-yellow-700 dark:group-hover:text-yellow-400 transition-colors">
+                                                            {styleObj.name}
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
 
-                                            {/* Label */}
-                                            <div className="flex items-center gap-3 p-4">
-                                                <Folder className="w-5 h-5 text-yellow-500 dark:text-yellow-400 shrink-0" />
-                                                <span className="font-bold text-sm text-gray-800 dark:text-gray-100 leading-tight group-hover:text-yellow-700 dark:group-hover:text-yellow-400 transition-colors">
-                                                    {style}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    );
-                                })
-                            ) : (
-                                niches.map((niche) => {
-                                    if (niche.name === 'Estilos de Gravação') return null; // Prevent showing styles folder in niche view
-                                    const nicheVideos = creatives.filter((c) => c.niche === niche.name);
-                                    const previewThumb = nicheVideos.find((c) => c.thumbnail_url)?.thumbnail_url;
-                                    return (
-                                        <button
-                                            key={niche.id}
-                                            onClick={() => setSelectedNiche(niche.name)}
-                                            className="group relative flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden text-left hover:shadow-lg hover:border-yellow-300 dark:hover:border-yellow-600 transition-all"
-                                        >
-                                            <div className="aspect-video w-full bg-gray-100 dark:bg-gray-900/50 relative overflow-hidden group/folderthumb">
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                    <FolderOpen className="w-10 h-10 text-gray-300 dark:text-gray-600 group-hover:text-yellow-400 transition-colors" />
-                                                </div>
-                                                {previewThumb && (
-                                                    <img
-                                                        src={previewThumb}
-                                                        alt={niche.name}
-                                                        className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 z-10"
-                                                        referrerPolicy="no-referrer"
-                                                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent z-20" />
-                                                <span className="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-bold bg-black/60 text-white rounded-md z-30">
-                                                    {nicheVideos.length} vídeo{nicheVideos.length !== 1 ? 's' : ''}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-3 p-4">
-                                                <Folder className="w-5 h-5 text-indigo-500 dark:text-indigo-400 shrink-0" />
-                                                <span className="font-bold text-sm text-gray-800 dark:text-gray-100 leading-tight group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">
-                                                    {niche.name}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    );
-                                })
+                            {/* ── Nichos ── */}
+                            {niches.length > 0 && (
+                                <>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Nichos</span>
+                                        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {niches.map((nicheObj) => {
+                                            const folderVideos = creatives.filter((c) => c.niche === nicheObj.name);
+                                            const previewThumb = folderVideos.find((c) => c.thumbnail_url)?.thumbnail_url;
+                                            return (
+                                                <button
+                                                    key={`niche-${nicheObj.id}`}
+                                                    onClick={() => setSelectedFolder({ type: 'niche', name: nicheObj.name })}
+                                                    className="group relative flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden text-left hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all"
+                                                >
+                                                    <div className="aspect-video w-full bg-gray-100 dark:bg-gray-900/50 relative overflow-hidden">
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <FolderOpen className="w-10 h-10 text-gray-300 dark:text-gray-600 group-hover:text-indigo-400 transition-colors" />
+                                                        </div>
+                                                        {previewThumb && (
+                                                            <img
+                                                                src={previewThumb}
+                                                                alt={nicheObj.name}
+                                                                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 z-10"
+                                                                referrerPolicy="no-referrer"
+                                                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                            />
+                                                        )}
+                                                        <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent z-20" />
+                                                        <span className="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-bold bg-black/60 text-white rounded-md z-30">
+                                                            {folderVideos.length} vídeo{folderVideos.length !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 p-4">
+                                                        <Folder className="w-5 h-5 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                                                        <span className="font-bold text-sm text-gray-800 dark:text-gray-100 leading-tight group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">
+                                                            {nicheObj.name}
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
                             )}
                         </div>
                     ) : (
@@ -765,7 +733,7 @@ export default function GoldLibrary() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                             {isAdmin && (
                                 <button
-                                    onClick={() => openAddModal(selectedStyle || undefined, selectedNiche || undefined)}
+                                    onClick={() => openAddModal(selectedFolder)}
                                     className="flex flex-col justify-center items-center gap-3 bg-gray-50/50 dark:bg-gray-900/50 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-8 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-yellow-400 dark:hover:border-yellow-600 transition-all text-gray-500 hover:text-yellow-600 dark:text-gray-400 min-h-[300px]"
                                 >
                                     <Plus className="w-10 h-10" />
@@ -794,7 +762,7 @@ export default function GoldLibrary() {
                 </>
             ) : (
                 /* ── MODELS VIEW (Ferramentas e Fórmulas) ─────────────────────────────────────────────── */
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4">
                     {models.map((model) => (
                         <ModelCard
                             key={model.id}
@@ -838,39 +806,39 @@ export default function GoldLibrary() {
                                 />
                             </div>
 
-                            {/* Estilo (Pasta) — sempre visível para evitar fallback errado */}
+                            {/* Pasta (Nicho/Estilo) — dropdown unificado */}
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">📁 Pasta / Estilos de Gravação</label>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Pasta (Nicho/Estilo)</label>
                                 <select
                                     className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none font-medium"
-                                    value={newCreative.style}
-                                    onChange={(e) => setNewCreative({ ...newCreative, style: e.target.value })}
+                                    value={`style:${newCreative.style || ''}`}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val.startsWith('style:')) {
+                                            setNewCreative({ ...newCreative, style: val.slice(6) });
+                                        } else if (val.startsWith('niche:')) {
+                                            setNewCreative({ ...newCreative, niche: val.slice(6) });
+                                        }
+                                    }}
                                 >
-                                    {styles.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                    <optgroup label="Estilos">
+                                        {styles.map((s) => <option key={`s-${s.id}`} value={`style:${s.name}`}>{s.name}</option>)}
+                                    </optgroup>
+                                    <optgroup label="Nichos">
+                                        {niches.map((n) => <option key={`n-${n.id}`} value={`niche:${n.name}`}>{n.name}</option>)}
+                                    </optgroup>
                                 </select>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Nicho</label>
-                                    <select
-                                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none"
-                                        value={newCreative.niche}
-                                        onChange={(e) => setNewCreative({ ...newCreative, niche: e.target.value })}
-                                        >
-                                            {niches.map((n) => <option key={n.id} value={n.name}>{n.name}</option>)}
-                                        </select>
-                                    </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Formato</label>
-                                    <select
-                                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none"
-                                        value={newCreative.format}
-                                        onChange={(e) => setNewCreative({ ...newCreative, format: e.target.value })}
-                                    >
-                                        {formats.map((f) => <option key={f} value={f}>{f}</option>)}
-                                    </select>
-                                </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Formato</label>
+                                <select
+                                    className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-yellow-500 outline-none"
+                                    value={newCreative.format}
+                                    onChange={(e) => setNewCreative({ ...newCreative, format: e.target.value })}
+                                >
+                                    {formats.map((f) => <option key={f} value={f}>{f}</option>)}
+                                </select>
                             </div>
 
                             <div className="pt-2">

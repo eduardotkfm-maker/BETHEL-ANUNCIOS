@@ -1,6 +1,7 @@
 import { NavLink, Link } from 'react-router-dom';
-import { LayoutDashboard, FileText, Library, BarChart2, Star, Kanban, Box, ChevronLeft, ChevronRight, X, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, Library, BarChart2, Star, Kanban, Box, ChevronLeft, ChevronRight, X, Settings, Flame } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useGamification } from '../contexts/GamificationContext';
 
 const navItems = [
     { name: 'Visão Geral', path: '/', icon: LayoutDashboard },
@@ -21,18 +22,20 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: SidebarProps) {
     const { profile } = useAuth();
+    const { levelInfo, streak, xp } = useGamification();
 
     return (
-        <aside className={`bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-screen flex flex-col fixed left-0 top-0 z-40 transition-all duration-300
-            ${isCollapsed ? 'w-20' : 'w-64'} 
-            ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
+        <aside className={`bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 h-screen flex flex-col fixed top-0 z-40 transition-all duration-300
+            ${isCollapsed ? 'w-20' : 'w-64'}
+            left-0 border-r lg:translate-x-0
+            ${isMobileOpen ? 'max-lg:left-auto max-lg:right-0 max-lg:border-r-0 max-lg:border-l max-lg:translate-x-0 max-lg:shadow-2xl' : 'max-lg:left-auto max-lg:right-0 max-lg:translate-x-full'}
         `}>
             <div className={`p-8 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-3 relative`}>
                 <div className={`w-full flex items-center justify-center overflow-hidden transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-4'} min-h-16`}>
                     <img
-                        src={isCollapsed ? "/logo_symbol.png" : "/logo_full.png"}
-                        className={`transition-all duration-300 object-contain drop-shadow-xl dark:brightness-110 
-                            ${isCollapsed ? 'w-10 h-10' : 'w-full h-12 md:h-14'}
+                        src={isCollapsed ? "/logo_icon.png" : "/logo_full.png"}
+                        className={`transition-all duration-300 object-contain drop-shadow-xl dark:brightness-110
+                            ${isCollapsed ? 'w-12 h-12 rounded-xl' : 'w-full h-12 md:h-14'}
                         `}
                         alt="Bethel Logo"
                     />
@@ -47,7 +50,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                 </button>
 
                 {/* Mobile Close Button */}
-                <button onClick={() => setIsMobileOpen(false)} className="lg:hidden p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 absolute right-4">
+                <button onClick={() => setIsMobileOpen(false)} className="lg:hidden p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 absolute left-4">
                     <X className="w-5 h-5" />
                 </button>
             </div>
@@ -83,14 +86,31 @@ export function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                             </div>
                         )}
                         {!isCollapsed && (
-                            <div className="flex flex-col overflow-hidden w-full">
+                            <div className="flex flex-col overflow-hidden w-full gap-1">
                                 <div className="flex justify-between items-center w-full">
                                     <span className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                         {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'Usuário'}
                                     </span>
-                                    <Settings className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="flex items-center gap-1.5">
+                                        {streak.currentStreak > 0 && (
+                                            <span className="flex items-center gap-0.5 text-orange-500 text-xs font-bold">
+                                                <Flame className="w-3.5 h-3.5" />
+                                                {streak.currentStreak}
+                                            </span>
+                                        )}
+                                        <Settings className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
                                 </div>
-                                <span className="text-xs text-indigo-600 dark:text-cyan-500 truncate font-medium">Premium Plan</span>
+                                <span className="text-[11px] text-purple-600 dark:text-purple-400 truncate font-semibold">
+                                    Nv.{levelInfo.level} · {levelInfo.title}
+                                </span>
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                    <div
+                                        className="h-1.5 rounded-full bg-linear-to-r from-purple-500 to-indigo-500 transition-all duration-500"
+                                        style={{ width: `${levelInfo.progressPercent}%` }}
+                                    />
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-medium">{xp} / {levelInfo.xpForNext} XP</span>
                             </div>
                         )}
                     </div>

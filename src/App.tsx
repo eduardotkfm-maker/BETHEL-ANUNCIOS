@@ -12,19 +12,25 @@ import Login from './pages/Login';
 import Settings from './pages/Settings';
 import { AuthProvider } from './contexts/AuthContext';
 import { AuthGuard } from './components/AuthGuard';
+import { ToastProvider } from './contexts/ToastContext';
+import { GamificationProvider } from './contexts/GamificationContext';
+import { ToastContainer } from './components/Toast';
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+    <ToastProvider>
+      <AuthProvider>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          <Route path="/" element={
-            <AuthGuard>
-              <AppLayout />
-            </AuthGuard>
-          }>
+            <Route path="/" element={
+              <AuthGuard>
+                <GamificationProvider>
+                  <AppLayout />
+                </GamificationProvider>
+              </AuthGuard>
+            }>
             <Route index element={<Dashboard />} />
             <Route path="produtos" element={<Products />} />
             <Route path="roteiros" element={<ScriptGenerator />} />
@@ -35,11 +41,13 @@ function App() {
             <Route path="config" element={<Settings />} />
           </Route>
 
-          {/* Fallback routing */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Fallback routing */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <ToastContainer />
+        </BrowserRouter>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

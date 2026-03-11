@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Send, Copy, FileText, Check, RefreshCw, Trash2, Sparkles, X } from 'lucide-react';
+import { Send, Copy, FileText, Check, RefreshCw, Trash2, Sparkles, X, Zap, Flame } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ScriptMarkdown } from '../components/ScriptMarkdown';
 import { generateScript } from '../lib/agents/scriptGeneratorAgent';
 import { traduzirErro } from '../lib/translateError';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useGamification } from '../contexts/GamificationContext';
 
 export default function ScriptGenerator() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { xp, levelInfo, streak, refresh: refreshGamification } = useGamification();
 
     // Recovery of Template Instruction passed by AdCard (ConversionModels)
     const [templateInstruction, setTemplateInstruction] = useState<string | undefined>(
@@ -144,6 +146,8 @@ export default function ScriptGenerator() {
                 console.error("Erro ao salvar automaticamente na Esteira:", dbError);
             }
 
+            refreshGamification();
+
         } catch (error) {
             console.error('Falha ao gerar o roteiro:', error);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -206,6 +210,8 @@ export default function ScriptGenerator() {
                 console.error("Erro ao salvar automaticamente na Esteira:", dbError);
             }
 
+            refreshGamification();
+
         } catch (error) {
             console.error('Falha ao gerar o roteiro:', error);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -239,7 +245,33 @@ export default function ScriptGenerator() {
     };
 
     return (
-        <div className="flex flex-col xl:flex-row gap-6">
+        <div className="space-y-4">
+            {/* XP Progress Bar */}
+            <div className="flex items-center gap-4 bg-white dark:bg-gray-900 px-5 py-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-black">
+                        <Zap className="w-3 h-3" /> Nv.{levelInfo.level}
+                    </span>
+                    <span className="text-xs font-bold text-gray-500 hidden sm:inline">{levelInfo.title}</span>
+                </div>
+                <div className="flex-1 flex items-center gap-3">
+                    <div className="flex-1 bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+                        <div
+                            className="h-full rounded-full bg-linear-to-r from-purple-500 via-indigo-500 to-cyan-500 transition-all duration-700"
+                            style={{ width: `${Math.max(2, levelInfo.progressPercent)}%` }}
+                        />
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-400 shrink-0">{xp} / {levelInfo.xpForNext} XP</span>
+                </div>
+                {streak.currentStreak > 0 && (
+                    <span className="flex items-center gap-1 text-orange-500 text-xs font-bold shrink-0">
+                        <Flame className="w-3.5 h-3.5" /> {streak.currentStreak}
+                    </span>
+                )}
+                <span className="text-[10px] font-bold text-emerald-500 shrink-0 hidden sm:inline">+100 XP por roteiro</span>
+            </div>
+
+            <div className="flex flex-col xl:flex-row gap-6">
             {/* Input Section */}
             <div className="xl:w-[380px] xl:shrink-0 bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 h-fit">
 
@@ -386,13 +418,18 @@ export default function ScriptGenerator() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Modelo de Criativo</label>
-                        <input
-                            type="text"
+                        <select
                             className="w-full p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-950 outline-none transition-all text-sm font-medium text-gray-900 dark:text-gray-200"
-                            placeholder="Ex: UGC, Review, Direto ao Ponto..."
                             value={formData.creativeModel}
                             onChange={(e) => setFormData({ ...formData, creativeModel: e.target.value })}
-                        />
+                        >
+                            <option value="">MOVI (Padrão)</option>
+                            <option value="PRSA">PRSA (Problema → Rota → Solução → Ação)</option>
+                            <option value="UGC">UGC (User Generated Content)</option>
+                            <option value="Review / Depoimento">Review / Depoimento</option>
+                            <option value="Direto ao Ponto">Direto ao Ponto</option>
+                            <option value="Storytelling">Storytelling</option>
+                        </select>
                     </div>
 
                     <button
@@ -457,6 +494,7 @@ export default function ScriptGenerator() {
                         </div>
                     )}
                 </div>
+            </div>
             </div>
         </div>
     );

@@ -1,4 +1,5 @@
 {
+    "name": "bethel-anuncios",
     "rewrites": [
         {
             "source": "/(.*)",

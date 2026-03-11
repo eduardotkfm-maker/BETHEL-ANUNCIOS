@@ -33,6 +33,13 @@ export async function generateScript(request: ScriptGeneratorRequest): Promise<S
 3. CONTRASTE: Sempre que possível, mostre o erro comum vs. a forma correta proposta pelo produto.
 4. OBSERVAÇÕES DE GRAVAÇÃO/EDIÇÃO: Ao final de cada roteiro, inclua uma seção de dicas rápidas sobre tom de voz, energia, tipos de legenda e sugestões de B-roll (imagens de apoio).
 
+[MÉTODO PRSA - USE QUANDO SOLICITADO]:
+Quando o modelo de criativo for "PRSA", estruture o roteiro obrigatoriamente nesta sequência:
+1. **PROBLEMA ou BENEFÍCIO** (P - Hook): Abra com a dor mais urgente do público OU com um benefício tão forte que gere curiosidade imediata. É o gancho que interrompe o scroll.
+2. **ROTA** (R - Caminho): Mostre o caminho que a pessoa precisa seguir para sair do problema ou alcançar o benefício. Explique a lógica por trás da solução de forma simples e clara.
+3. **SOLUÇÃO** (S - Produto): Apresente o produto/serviço como a ferramenta que percorre essa rota. Destaque diferenciais, provas e resultados concretos.
+4. **AÇÃO** (A - CTA): Finalize com um comando direto e irresistível. Deixe claro o próximo passo (agendar, comprar, clicar, chamar no WhatsApp).
+
 [REGRAS DE FORMATAÇÃO DE TEXTO]:
 1. QUEBRA DE LINHA: Use parágrafos curtos e frases diretas.
 2. markdown: Use markdown padrão (h1 para títulos de roteiro, negrito para ênfase).
@@ -103,7 +110,12 @@ Sempre que um cliente enviar os dados de um produto, você deve:
 2. Definir o Gancho de Quebra de Padrão visual e textual.
 3. Estruturar o corpo do texto para elevar o Nível de Consciência.
 4. Criar um CTA irresistível.
-5. Formatar o roteiro com descrições de CENA e ÁUDIO separadas.`;
+5. Formatar o roteiro com descrições de CENA e ÁUDIO separadas.
+
+📐 Métodos Disponíveis
+- **MOVI** (padrão): Quebra de Padrão → Nível de Consciência → CTA. Ideal para qualquer nicho.
+- **PRSA**: Problema/Benefício → Rota → Solução → Ação. Estrutura linear e persuasiva, ótima para anúncios diretos e funis de conversão rápida.
+Quando o usuário escolher "PRSA" no modelo de criativo, siga RIGOROSAMENTE a estrutura P→R→S→A nas seções do roteiro.`;
 
         const res = await fetch('/api/openai-chat', {
             method: 'POST',

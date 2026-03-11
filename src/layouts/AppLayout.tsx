@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { Menu } from 'lucide-react';
+import { useAchievementWatcher } from '../hooks/useAchievementWatcher';
 
 export default function AppLayout() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const location = useLocation();
+    useAchievementWatcher();
 
     // Fechar menu mobile ao trocar de rota
     useEffect(() => {
