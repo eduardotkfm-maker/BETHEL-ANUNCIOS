@@ -115,6 +115,7 @@ Sempre que um cliente enviar os dados de um produto, você deve:
                     { role: "user", content: userMessage }
                 ],
                 temperature: 0.7,
+                feature: 'script_generator',
             }),
         });
 

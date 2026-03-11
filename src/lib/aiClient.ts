@@ -5,6 +5,8 @@ async function callOpenAI(params: {
     model?: string;
     temperature?: number;
     response_format?: { type: string };
+    feature?: string;
+    user_id?: string;
 }): Promise<string> {
     const res = await fetch('/api/openai-chat', {
         method: 'POST',
@@ -51,6 +53,7 @@ REGRAS:
             messages: [{ role: "system", content: prompt }],
             response_format: { type: "json_object" },
             temperature: 0.7,
+            feature: 'ad_analyzer',
         });
         return JSON.parse(text);
     } catch (e) {
@@ -150,6 +153,7 @@ SUA TAREFA:
             messages: [{ role: "user", content: gptPrompt }],
             response_format: { type: "json_object" },
             temperature: 0.8,
+            feature: 'video_clone',
         });
         return JSON.parse(text);
     } catch (gptError) {

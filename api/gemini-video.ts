@@ -1,4 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
+
+// Gemini 2.5 Flash pricing per 1M tokens
+const GEMINI_PRICING = { input: 0.15, output: 0.60 };
+
+function getSupabase() {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+    if (!url || !key) return null;
+    return createClient(url, key);
+}
 
 export const config = {
     api: {
@@ -18,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server.' });
     }
 
-    const { videoBase64, mimeType, prompt } = req.body;
+    const { videoBase64, mimeType, prompt, user_id } = req.body;
 
     if (!videoBase64 || !prompt) {
         return res.status(400).json({ error: 'Missing videoBase64 or prompt.' });
@@ -126,6 +137,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const generateData = await generateRes.json();
         const analysis = generateData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const usageMetadata = generateData.usageMetadata;
+
+        // Log usage to Supabase (fire and forget)
+        try {
+            const promptTokens = usageMetadata?.promptTokenCount || 0;
+            const completionTokens = usageMetadata?.candidatesTokenCount || 0;
+            const totalTokens = usageMetadata?.totalTokenCount || promptTokens + completionTokens;
+            const costUsd = (promptTokens * GEMINI_PRICING.input + completionTokens * GEMINI_PRICING.output) / 1_000_000;
+
+            const supabase = getSupabase();
+            if (supabase) {
+                await supabase.from('ai_usage_logs').insert({
+                    user_id: user_id || null,
+                    provider: 'gemini',
+                    model: 'gemini-2.5-flash',
+                    feature: 'video_clone',
+                    prompt_tokens: promptTokens,
+                    completion_tokens: completionTokens,
+                    total_tokens: totalTokens,
+                    estimated_cost_usd: costUsd,
+                });
+            }
+        } catch (logErr) {
+            console.warn('Failed to log Gemini usage:', logErr);
+        }
 
         return res.status(200).json({ analysis });
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any

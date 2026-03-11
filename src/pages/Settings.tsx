@@ -2,14 +2,26 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { traduzirErro } from '../lib/translateError';
-import { Camera, Save, LogOut, Loader2, Key, User, ShieldCheck, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Camera, Save, LogOut, Loader2, Key, User, ShieldCheck, Mail, AlertCircle, CheckCircle2, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+interface UsageLog {
+    id: string;
+    created_at: string;
+    provider: string;
+    model: string;
+    feature: string;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    estimated_cost_usd: number;
+}
+
 export default function Settings() {
-    const { user, profile, updateProfile, signOut } = useAuth();
+    const { user, profile, updateProfile, signOut, isAdmin } = useAuth();
     const navigate = useNavigate();
 
-    const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'costs'>('profile');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -23,6 +35,36 @@ export default function Settings() {
     // Security State
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    // Costs State (admin only)
+    const [usageLogs, setUsageLogs] = useState<UsageLog[]>([]);
+    const [costsLoading, setCostsLoading] = useState(false);
+    const [costsPeriod, setCostsPeriod] = useState<'today' | '7d' | '30d'>('30d');
+
+    useEffect(() => {
+        if (isAdmin && activeTab === 'costs') {
+            const fetchCosts = async () => {
+                setCostsLoading(true);
+                const now = new Date();
+                let since: Date;
+                if (costsPeriod === 'today') {
+                    since = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                } else if (costsPeriod === '7d') {
+                    since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                } else {
+                    since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                }
+                const { data } = await supabase
+                    .from('ai_usage_logs')
+                    .select('*')
+                    .gte('created_at', since.toISOString())
+                    .order('created_at', { ascending: false });
+                setUsageLogs(data || []);
+                setCostsLoading(false);
+            };
+            fetchCosts();
+        }
+    }, [isAdmin, activeTab, costsPeriod]);
 
     useEffect(() => {
         if (profile) {
@@ -174,6 +216,14 @@ export default function Settings() {
                 >
                     <Key className="w-4 h-4" /> Segurança (Senha)
                 </button>
+                {isAdmin && (
+                    <button
+                        onClick={() => setActiveTab('costs')}
+                        className={`flex items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'costs' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                    >
+                        <DollarSign className="w-4 h-4" /> Custos IA
+                    </button>
+                )}
                 <div
                     className={`items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 border-transparent text-gray-500 cursor-not-allowed hidden md:flex`}
                 >
@@ -320,6 +370,148 @@ export default function Settings() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                )}
+
+                {activeTab === 'costs' && isAdmin && (
+                    <div className="p-6 md:p-8 animate-in fade-in">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <DollarSign className="w-5 h-5 text-emerald-500" /> Custos dos Agentes IA
+                            </h3>
+                            <div className="flex gap-2">
+                                {(['today', '7d', '30d'] as const).map(p => (
+                                    <button
+                                        key={p}
+                                        onClick={() => setCostsPeriod(p)}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${costsPeriod === p ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                                    >
+                                        {p === 'today' ? 'Hoje' : p === '7d' ? '7 dias' : '30 dias'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {costsLoading ? (
+                            <div className="flex justify-center py-12">
+                                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                            </div>
+                        ) : (
+                            <>
+                                {/* Summary Cards */}
+                                {(() => {
+                                    const totalCost = usageLogs.reduce((sum, l) => sum + (l.estimated_cost_usd || 0), 0);
+                                    const totalTokens = usageLogs.reduce((sum, l) => sum + (l.total_tokens || 0), 0);
+                                    const openaiLogs = usageLogs.filter(l => l.provider === 'openai');
+                                    const geminiLogs = usageLogs.filter(l => l.provider === 'gemini');
+                                    const openaiCost = openaiLogs.reduce((sum, l) => sum + (l.estimated_cost_usd || 0), 0);
+                                    const geminiCost = geminiLogs.reduce((sum, l) => sum + (l.estimated_cost_usd || 0), 0);
+
+                                    const featureMap: Record<string, { label: string; count: number; cost: number }> = {};
+                                    usageLogs.forEach(l => {
+                                        const key = l.feature || 'unknown';
+                                        if (!featureMap[key]) featureMap[key] = { label: key, count: 0, cost: 0 };
+                                        featureMap[key].count++;
+                                        featureMap[key].cost += l.estimated_cost_usd || 0;
+                                    });
+
+                                    const featureLabels: Record<string, string> = {
+                                        script_generator: 'Gerador de Roteiros',
+                                        ad_analyzer: 'Analisador de Anúncios',
+                                        video_clone: 'Clonagem de Vídeo',
+                                        unknown: 'Outros',
+                                    };
+
+                                    return (
+                                        <>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 text-center">
+                                                    <div className="text-2xl font-black text-gray-900 dark:text-white">${totalCost.toFixed(4)}</div>
+                                                    <div className="text-xs font-bold text-gray-500 uppercase mt-1">Custo Total</div>
+                                                </div>
+                                                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 text-center">
+                                                    <div className="text-2xl font-black text-gray-900 dark:text-white">{usageLogs.length}</div>
+                                                    <div className="text-xs font-bold text-gray-500 uppercase mt-1">Chamadas</div>
+                                                </div>
+                                                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 text-center">
+                                                    <div className="text-2xl font-black text-emerald-600">${openaiCost.toFixed(4)}</div>
+                                                    <div className="text-xs font-bold text-gray-500 uppercase mt-1">OpenAI ({openaiLogs.length})</div>
+                                                </div>
+                                                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 text-center">
+                                                    <div className="text-2xl font-black text-blue-600">${geminiCost.toFixed(4)}</div>
+                                                    <div className="text-xs font-bold text-gray-500 uppercase mt-1">Gemini ({geminiLogs.length})</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Per Feature Breakdown */}
+                                            <div className="mb-6">
+                                                <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Por Funcionalidade</h4>
+                                                <div className="space-y-2">
+                                                    {Object.entries(featureMap).map(([key, val]) => (
+                                                        <div key={key} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3">
+                                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{featureLabels[key] || key}</span>
+                                                            <div className="flex items-center gap-4">
+                                                                <span className="text-xs text-gray-500">{val.count} chamadas</span>
+                                                                <span className="text-sm font-bold text-gray-900 dark:text-white">${val.cost.toFixed(4)}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Tokens Summary */}
+                                            <div className="text-center text-xs text-gray-400 font-medium">
+                                                Total de tokens consumidos: {totalTokens.toLocaleString('pt-BR')}
+                                            </div>
+
+                                            {/* Recent Logs Table */}
+                                            {usageLogs.length > 0 && (
+                                                <div className="mt-6">
+                                                    <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Histórico Recente</h4>
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-xs">
+                                                            <thead>
+                                                                <tr className="border-b border-gray-200 dark:border-gray-700">
+                                                                    <th className="text-left py-2 px-2 font-bold text-gray-500 uppercase">Data</th>
+                                                                    <th className="text-left py-2 px-2 font-bold text-gray-500 uppercase">Provedor</th>
+                                                                    <th className="text-left py-2 px-2 font-bold text-gray-500 uppercase">Feature</th>
+                                                                    <th className="text-right py-2 px-2 font-bold text-gray-500 uppercase">Tokens</th>
+                                                                    <th className="text-right py-2 px-2 font-bold text-gray-500 uppercase">Custo</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {usageLogs.slice(0, 50).map(log => (
+                                                                    <tr key={log.id} className="border-b border-gray-100 dark:border-gray-800">
+                                                                        <td className="py-2 px-2 text-gray-600 dark:text-gray-400">
+                                                                            {new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                                        </td>
+                                                                        <td className="py-2 px-2">
+                                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${log.provider === 'openai' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
+                                                                                {log.provider}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="py-2 px-2 text-gray-700 dark:text-gray-300 font-medium">{featureLabels[log.feature] || log.feature}</td>
+                                                                        <td className="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{(log.total_tokens || 0).toLocaleString('pt-BR')}</td>
+                                                                        <td className="py-2 px-2 text-right font-bold text-gray-900 dark:text-white">${(log.estimated_cost_usd || 0).toFixed(4)}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {usageLogs.length === 0 && (
+                                                <div className="text-center py-12 text-gray-400">
+                                                    <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                                    <p className="font-medium">Nenhum registro de uso neste período.</p>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </>
+                        )}
                     </div>
                 )}
             </div>
